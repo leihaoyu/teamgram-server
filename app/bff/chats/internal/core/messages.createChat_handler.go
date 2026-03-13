@@ -28,7 +28,7 @@ import (
 )
 
 // MessagesCreateChat
-// messages.createChat#9cb126e users:Vector<InputUser> title:string = Updates;
+// messages.createChat#34a818 flags:# users:Vector<InputUser> title:string ttl_period:flags.0?int = Updates;
 func (c *ChatsCore) MessagesCreateChat(in *mtproto.TLMessagesCreateChat) (*mtproto.Updates, error) {
 	var (
 		chatUserIdList []int64
@@ -138,6 +138,18 @@ func (c *ChatsCore) MessagesCreateChat(in *mtproto.TLMessagesCreateChat) (*mtpro
 	if err != nil {
 		c.Logger.Errorf("createChat duplicate: %v", err)
 		return nil, err
+	}
+
+	if in.GetTtlPeriod() != nil {
+		_, err = c.svcCtx.Dao.ChatClient.Client().ChatSetHistoryTTL(c.ctx, &chatpb.TLChatSetHistoryTTL{
+			SelfId:    c.MD.UserId,
+			ChatId:    chat.Chat.Id,
+			TtlPeriod: in.GetTtlPeriod().GetValue(),
+		})
+		if err != nil {
+			c.Logger.Errorf("messages.createChat - set ttl_period error: %v", err)
+			return nil, err
+		}
 	}
 
 	// TODO: add attach_data (chat and chat_participants)
