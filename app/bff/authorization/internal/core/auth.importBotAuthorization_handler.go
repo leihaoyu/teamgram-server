@@ -26,7 +26,7 @@ import (
 // auth.importBotAuthorization#67a3ff2c flags:int api_id:int api_hash:string bot_auth_token:string = auth.Authorization;
 func (c *AuthorizationCore) AuthImportBotAuthorization(in *mtproto.TLAuthImportBotAuthorization) (*mtproto.Auth_Authorization, error) {
 	// TODO: not impl
-	c.Logger.Errorf("auth.importBotAuthorization blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("auth.importBotAuthorization - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }

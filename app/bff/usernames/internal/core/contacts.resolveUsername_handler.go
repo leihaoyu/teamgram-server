@@ -80,7 +80,7 @@ func (c *UsernamesCore) ContactsResolveUsername(in *mtproto.TLContactsResolveUse
 		if c.svcCtx.Plugin != nil {
 			resolvedPeer.Chats = c.svcCtx.Plugin.GetChannelListByIdList(c.ctx, c.MD.UserId, peer.PeerId)
 		} else {
-			c.Logger.Errorf("contacts.resolveUsername blocked, License key from https://teamgram.net required to unlock enterprise features.")
+			c.Logger.Errorf("contacts.resolveUsername - method not impl.")
 		}
 	}
 

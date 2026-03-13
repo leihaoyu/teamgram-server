@@ -26,7 +26,7 @@ import (
 // contacts.editCloseFriends#ba6705f0 id:Vector<long> = Bool;
 func (c *ContactsCore) ContactsEditCloseFriends(in *mtproto.TLContactsEditCloseFriends) (*mtproto.Bool, error) {
 	// TODO: not impl
-	c.Logger.Errorf("contacts.editCloseFriends blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("contacts.editCloseFriends - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }

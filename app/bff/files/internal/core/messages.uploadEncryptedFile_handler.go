@@ -26,7 +26,7 @@ import (
 // messages.uploadEncryptedFile#5057c497 peer:InputEncryptedChat file:InputEncryptedFile = EncryptedFile;
 func (c *FilesCore) MessagesUploadEncryptedFile(in *mtproto.TLMessagesUploadEncryptedFile) (*mtproto.EncryptedFile, error) {
 	// TODO: not impl
-	c.Logger.Errorf("messages.uploadEncryptedFile blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("messages.uploadEncryptedFile - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }

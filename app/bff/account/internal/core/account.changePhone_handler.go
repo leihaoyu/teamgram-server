@@ -26,7 +26,7 @@ import (
 // account.changePhone#70c32edb phone_number:string phone_code_hash:string phone_code:string = User;
 func (c *AccountCore) AccountChangePhone(in *mtproto.TLAccountChangePhone) (*mtproto.User, error) {
 	// TODO: not impl
-	c.Logger.Errorf("account.changePhone blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("account.changePhone - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }

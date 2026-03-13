@@ -70,7 +70,7 @@ func (c *BFFProxyClient) GetRpcClientByRequest(t interface{}) (zrpc.Client, erro
 		return c2, nil
 	} else {
 		// logx.Errorf("not found method: %s", rt.Name())
-		// logx.Errorf("%s blocked, License key from https://teamgram.net required to unlock enterprise features.", rt.Name())
+		// logx.Errorf("%s - method not impl.", rt.Name())
 	}
 
 	// TODO(@benqi):
@@ -97,7 +97,7 @@ func (c *BFFProxyClient) InvokeContext(ctx context.Context, rpcMetaData *metadat
 	if t == nil {
 		err = fmt.Errorf("Invoke error: %v not regist!\n", object)
 		logx.Error(err.Error())
-		return nil, mtproto.NewRpcError(status.Convert(mtproto.ErrEnterpriseIsBlocked))
+		return nil, mtproto.NewRpcError(status.Convert(mtproto.ErrMethodNotImpl))
 	}
 
 	// logx.Infof("Invoke - method: {%s}", t.Method)

@@ -40,9 +40,9 @@ func (c *ChatsCore) MessagesEditChatAbout(in *mtproto.TLMessagesEditChatAbout) (
 			return nil, err
 		}
 	case mtproto.PEER_CHANNEL:
-		c.Logger.Errorf("messages.editChatAbout blocked, License key from https://teamgram.net required to unlock enterprise features.")
+		c.Logger.Errorf("messages.editChatAbout - method not impl.")
 
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		return nil, mtproto.ErrMethodNotImpl
 	default:
 		err := mtproto.ErrPeerIdInvalid
 		c.Logger.Errorf("invalid peer type: {%v}")

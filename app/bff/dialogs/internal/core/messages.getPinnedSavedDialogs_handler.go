@@ -26,7 +26,7 @@ import (
 // messages.getPinnedSavedDialogs#d63d94e0 = messages.SavedDialogs;
 func (c *DialogsCore) MessagesGetPinnedSavedDialogs(in *mtproto.TLMessagesGetPinnedSavedDialogs) (*mtproto.Messages_SavedDialogs, error) {
 	// TODO: not impl
-	c.Logger.Debugf("messages.getPinnedSavedDialogs blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Debugf("messages.getPinnedSavedDialogs - method not impl.")
 
 	return mtproto.MakeTLMessagesSavedDialogs(&mtproto.Messages_SavedDialogs{
 		Dialogs:  []*mtproto.SavedDialog{},

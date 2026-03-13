@@ -31,13 +31,13 @@ func (c *MsgCore) MsgSendMessage(in *msg.TLMsgSendMessage) (*mtproto.Updates, er
 	)
 
 	if peer.IsChannel() {
-		// c.Logger.Errorf("msg.sendMultiMessage blocked, License key from https://teamgram.net required to unlock enterprise features.")
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		// c.Logger.Errorf("msg.sendMultiMessage - method not impl.")
+		return nil, mtproto.ErrMethodNotImpl
 	}
 
 	if outBox.GetScheduleDate().GetValue() != 0 {
-		// c.Logger.Errorf("msg.sendMessage blocked, License key from https://teamgram.net required to unlock enterprise features.")
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		// c.Logger.Errorf("msg.sendMessage - method not impl.")
+		return nil, mtproto.ErrMethodNotImpl
 	}
 
 	if !peer.IsChatOrUser() {

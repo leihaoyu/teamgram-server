@@ -26,7 +26,7 @@ import (
 // help.saveAppLog#6f02f748 events:Vector<InputAppEvent> = Bool;
 func (c *MiscellaneousCore) HelpSaveAppLog(in *mtproto.TLHelpSaveAppLog) (*mtproto.Bool, error) {
 	// TODO: not impl
-	c.Logger.Errorf("help.saveAppLog blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("help.saveAppLog - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }

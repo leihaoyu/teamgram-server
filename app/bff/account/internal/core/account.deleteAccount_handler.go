@@ -26,7 +26,7 @@ import (
 // account.deleteAccount#418d4e0b reason:string = Bool;
 func (c *AccountCore) AccountDeleteAccount(in *mtproto.TLAccountDeleteAccount) (*mtproto.Bool, error) {
 	// TODO: not impl
-	c.Logger.Errorf("account.deleteAccount blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("account.deleteAccount - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }

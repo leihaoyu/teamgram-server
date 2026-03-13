@@ -26,7 +26,7 @@ import (
 // upload.getFileHashes#c7025931 location:InputFileLocation offset:int = Vector<FileHash>;
 func (c *FilesCore) UploadGetFileHashes(in *mtproto.TLUploadGetFileHashes) (*mtproto.Vector_FileHash, error) {
 	// TODO: not impl
-	c.Logger.Errorf("upload.getFileHashes blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("upload.getFileHashes - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }

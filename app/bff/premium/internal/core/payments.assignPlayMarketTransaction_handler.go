@@ -26,7 +26,7 @@ import (
 // payments.assignPlayMarketTransaction#dffd50d3 receipt:DataJSON purpose:InputStorePaymentPurpose = Updates;
 func (c *PremiumCore) PaymentsAssignPlayMarketTransaction(in *mtproto.TLPaymentsAssignPlayMarketTransaction) (*mtproto.Updates, error) {
 	// TODO: not impl
-	c.Logger.Errorf("payments.assignPlayMarketTransaction blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("payments.assignPlayMarketTransaction - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }

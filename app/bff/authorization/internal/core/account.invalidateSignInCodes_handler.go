@@ -26,7 +26,7 @@ import (
 // account.invalidateSignInCodes#ca8ae8ba codes:Vector<string> = Bool;
 func (c *AuthorizationCore) AccountInvalidateSignInCodes(in *mtproto.TLAccountInvalidateSignInCodes) (*mtproto.Bool, error) {
 	// TODO: not impl
-	c.Logger.Errorf("account.invalidateSignInCodes blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("account.invalidateSignInCodes - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }
