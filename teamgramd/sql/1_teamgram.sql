@@ -69,7 +69,7 @@ CREATE TABLE `auth_keys` (
 --
 
 CREATE TABLE `auth_key_infos` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `id` bigint(20) NOT NULL,
   `auth_key_id` bigint(20) NOT NULL,
   `auth_key_type` int(11) NOT NULL,
   `perm_auth_key_id` bigint(20) NOT NULL DEFAULT '0',
@@ -825,6 +825,9 @@ ALTER TABLE `auth_keys`
 ALTER TABLE `auth_key_infos`
   ADD PRIMARY KEY (`id`),
   ADD UNIQUE KEY `auth_key_id` (`auth_key_id`);
+
+ALTER TABLE `auth_key_infos`
+  MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
 
 --
 -- 表的索引 `auth_seq_updates`
