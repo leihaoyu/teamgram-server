@@ -37,8 +37,8 @@ func (c *FilesCore) UploadGetWebFile(in *mtproto.TLUploadGetWebFile) (*mtproto.U
 
 		return nil, err
 	default:
-		c.Logger.Errorf("upload.getWebFile blocked, License key from https://teamgram.net required to unlock enterprise features.")
+		c.Logger.Errorf("upload.getWebFile - method not impl.")
 
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		return nil, mtproto.ErrMethodNotImpl
 	}
 }

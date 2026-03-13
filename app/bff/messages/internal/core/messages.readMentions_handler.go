@@ -26,7 +26,7 @@ import (
 // messages.readMentions#f0189d3 peer:InputPeer = messages.AffectedHistory;
 func (c *MessagesCore) MessagesReadMentions(in *mtproto.TLMessagesReadMentions) (*mtproto.Messages_AffectedHistory, error) {
 	// TODO: not impl
-	c.Logger.Errorf("messages.readMentions blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("messages.readMentions - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }

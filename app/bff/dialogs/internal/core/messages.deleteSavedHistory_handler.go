@@ -26,7 +26,7 @@ import (
 // messages.deleteSavedHistory#6e98102b flags:# peer:InputPeer max_id:int min_date:flags.2?int max_date:flags.3?int = messages.AffectedHistory;
 func (c *DialogsCore) MessagesDeleteSavedHistory(in *mtproto.TLMessagesDeleteSavedHistory) (*mtproto.Messages_AffectedHistory, error) {
 	// TODO: not impl
-	c.Logger.Errorf("messages.deleteSavedHistory blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("messages.deleteSavedHistory - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }

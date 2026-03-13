@@ -26,7 +26,7 @@ import (
 // messages.getSavedDialogs#5381d21a flags:# exclude_pinned:flags.0?true offset_date:int offset_id:int offset_peer:InputPeer limit:int hash:long = messages.SavedDialogs;
 func (c *DialogsCore) MessagesGetSavedDialogs(in *mtproto.TLMessagesGetSavedDialogs) (*mtproto.Messages_SavedDialogs, error) {
 	// TODO: not impl
-	c.Logger.Debugf("messages.getSavedDialogs blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Debugf("messages.getSavedDialogs - method not impl.")
 
 	return mtproto.MakeTLMessagesSavedDialogs(&mtproto.Messages_SavedDialogs{
 		Dialogs:  []*mtproto.SavedDialog{},

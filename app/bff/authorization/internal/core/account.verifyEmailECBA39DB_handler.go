@@ -26,7 +26,7 @@ import (
 // account.verifyEmail#ecba39db email:string code:string = Bool;
 func (c *AuthorizationCore) AccountVerifyEmailECBA39DB(in *mtproto.TLAccountVerifyEmailECBA39DB) (*mtproto.Bool, error) {
 	// TODO: not impl
-	c.Logger.Errorf("account.verifyEmailECBA39DB blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("account.verifyEmailECBA39DB - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }

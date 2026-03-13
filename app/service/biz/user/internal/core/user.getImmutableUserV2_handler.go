@@ -27,7 +27,7 @@ import (
 // user.getImmutableUserV2 flags:# id:long privacy:flags.1?true contacts:Vector<long> = ImmutableUser;
 func (c *UserCore) UserGetImmutableUserV2(in *user.TLUserGetImmutableUserV2) (*mtproto.ImmutableUser, error) {
 	// TODO: not impl
-	c.Logger.Errorf("user.getImmutableUserV2 blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("user.getImmutableUserV2 - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }

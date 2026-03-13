@@ -18,7 +18,7 @@ import (
 // media.uploadThemeFile flags:# owner_id:long file:InputFile thumb:flags.0?InputFile mime_type:string file_name:string = Document;
 func (c *MediaCore) MediaUploadThemeFile(in *media.TLMediaUploadThemeFile) (*mtproto.Document, error) {
 	// TODO: not impl
-	c.Logger.Errorf("media.uploadThemeFile blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("media.uploadThemeFile - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }

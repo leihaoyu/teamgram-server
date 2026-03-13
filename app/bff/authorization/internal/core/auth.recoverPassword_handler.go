@@ -26,7 +26,7 @@ import (
 // auth.recoverPassword#37096c70 flags:# code:string new_settings:flags.0?account.PasswordInputSettings = auth.Authorization;
 func (c *AuthorizationCore) AuthRecoverPassword(in *mtproto.TLAuthRecoverPassword) (*mtproto.Auth_Authorization, error) {
 	// TODO: not impl
-	c.Logger.Errorf("auth.recoverPassword blocked, License key from https://teamgram.net required to unlock enterprise features.")
+	c.Logger.Errorf("auth.recoverPassword - method not impl.")
 
-	return nil, mtproto.ErrEnterpriseIsBlocked
+	return nil, mtproto.ErrMethodNotImpl
 }

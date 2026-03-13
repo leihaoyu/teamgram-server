@@ -31,9 +31,9 @@ func (c *MessageCore) MessageUnPinAllMessages(in *message.TLMessageUnPinAllMessa
 			c.svcCtx.Dao.MessagesDAO.UpdateUnPinnedByIdList(c.ctx, in.UserId, idList)
 		}
 	case mtproto.PEER_CHANNEL:
-		c.Logger.Errorf("message.unPinAllMessages blocked, License key from https://teamgram.net required to unlock enterprise features.")
+		c.Logger.Errorf("message.unPinAllMessages - method not impl.")
 
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		return nil, mtproto.ErrMethodNotImpl
 	}
 
 	return &message.Vector_Int{

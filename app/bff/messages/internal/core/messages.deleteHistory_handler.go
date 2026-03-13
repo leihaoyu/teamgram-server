@@ -32,8 +32,8 @@ func (c *MessagesCore) MessagesDeleteHistory(in *mtproto.TLMessagesDeleteHistory
 	)
 
 	if peer.IsChannel() {
-		c.Logger.Errorf("messages.deleteHistory blocked, License key from https://teamgram.net required to unlock enterprise features.")
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		c.Logger.Errorf("messages.deleteHistory - method not impl.")
+		return nil, mtproto.ErrMethodNotImpl
 	}
 
 	if !peer.IsChatOrUser() {

@@ -34,9 +34,9 @@ func (c *MessageCore) MessageSearchByPinned(in *message.TLMessageSearchByPinned)
 				boxList = append(boxList, c.svcCtx.Dao.MakeMessageBox(c.ctx, in.UserId, v))
 			})
 	case mtproto.PEER_CHANNEL:
-		c.Logger.Errorf("message.searchByPinned blocked, License key from https://teamgram.net required to unlock enterprise features.")
+		c.Logger.Errorf("message.searchByPinned - method not impl.")
 
-		return nil, mtproto.ErrEnterpriseIsBlocked
+		return nil, mtproto.ErrMethodNotImpl
 	}
 
 	return mtproto.MakeTLMessageBoxList(&mtproto.MessageBoxList{
