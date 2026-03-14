@@ -1,7 +1,6 @@
 package core
 
 import (
-	"math/rand"
 	"testing"
 	"time"
 
@@ -15,7 +14,6 @@ import (
 func TestDocumentSerializationRoundtrip(t *testing.T) {
 	now := time.Now().Unix()
 
-	// Build a realistic Document like fetchAndCacheStickerSet does
 	sticker := dao.BotAPISticker{
 		FileId:       "CAACAgIAAxkBAAIBdGF...",
 		FileUniqueId: "AgADYQAD",
@@ -27,41 +25,32 @@ func TestDocumentSerializationRoundtrip(t *testing.T) {
 		IsAnimated:   true,
 		IsVideo:      false,
 		Type:         "regular",
-		Thumbnail: &dao.BotAPIPhotoSize{
-			FileId:       "AAMCAgADFQABabU1uG4...",
-			FileUniqueId: "AQADYQADthumb",
-			FileSize:     5038,
-			Width:        128,
-			Height:       128,
-		},
 	}
 
 	docId := int64(7654321)
 	setId := int64(1234567)
-	setAccessHash := rand.Int63()
-	docAccessHash := generateAccessHash(sticker)
+	setAccessHash := int64(9999)
 	mimeType := stickerMimeType(sticker)
 	attributes := buildDocumentAttributes(sticker, setId, setAccessHash)
-	thumbs := buildStickerThumbs(sticker)
 
 	original := mtproto.MakeTLDocument(&mtproto.Document{
 		Id:            docId,
-		AccessHash:    docAccessHash,
+		AccessHash:    12345,
 		FileReference: []byte{},
 		Date:          int32(now),
 		MimeType:      mimeType,
 		Size2_INT32:   int32(sticker.FileSize),
 		Size2_INT64:   sticker.FileSize,
-		Thumbs:        thumbs,
+		Thumbs:        nil,
 		VideoThumbs:   nil,
 		DcId:          1,
 		Attributes:    attributes,
 	}).To_Document()
 
 	// Serialize
-	serialized, err := serializeDocument(original)
+	serialized, err := dao.SerializeStickerDoc(original)
 	if err != nil {
-		t.Fatalf("serializeDocument failed: %v", err)
+		t.Fatalf("SerializeStickerDoc failed: %v", err)
 	}
 	if serialized == "" {
 		t.Fatal("serialized document is empty string")
@@ -69,12 +58,12 @@ func TestDocumentSerializationRoundtrip(t *testing.T) {
 	t.Logf("Serialized document: %d chars (base64)", len(serialized))
 
 	// Deserialize
-	restored, err := deserializeDocument(serialized)
+	restored, err := dao.DeserializeStickerDoc(serialized)
 	if err != nil {
-		t.Fatalf("deserializeDocument failed: %v", err)
+		t.Fatalf("DeserializeStickerDoc failed: %v", err)
 	}
 
-	// Verify all fields
+	// Verify key fields
 	if restored.Id != original.Id {
 		t.Errorf("Id: got %d, want %d", restored.Id, original.Id)
 	}
@@ -93,33 +82,15 @@ func TestDocumentSerializationRoundtrip(t *testing.T) {
 	if restored.Size2_INT64 != original.Size2_INT64 {
 		t.Errorf("Size2_INT64: got %d, want %d", restored.Size2_INT64, original.Size2_INT64)
 	}
-	if restored.Size2_INT32 != original.Size2_INT32 {
-		t.Errorf("Size2_INT32: got %d, want %d", restored.Size2_INT32, original.Size2_INT32)
-	}
-
-	// Verify attributes count
 	if len(restored.Attributes) != len(original.Attributes) {
 		t.Fatalf("Attributes count: got %d, want %d", len(restored.Attributes), len(original.Attributes))
 	}
 
-	// Verify thumbs
-	if len(restored.Thumbs) != len(original.Thumbs) {
-		t.Fatalf("Thumbs count: got %d, want %d", len(restored.Thumbs), len(original.Thumbs))
-	}
-	if len(restored.Thumbs) > 0 {
-		if restored.Thumbs[0].W != original.Thumbs[0].W || restored.Thumbs[0].H != original.Thumbs[0].H {
-			t.Errorf("Thumb dimensions: got %dx%d, want %dx%d",
-				restored.Thumbs[0].W, restored.Thumbs[0].H,
-				original.Thumbs[0].W, original.Thumbs[0].H)
-		}
-	}
-
-	// Verify proto-level equality
 	if !proto.Equal(original, restored) {
 		t.Error("proto.Equal returned false: original and restored documents differ")
 	}
 
-	t.Log("Document serialization roundtrip: PASS (all fields preserved)")
+	t.Log("Document serialization roundtrip: PASS")
 }
 
 // TestDocumentSerializationNoThumbs tests Document without thumbnails
@@ -138,14 +109,14 @@ func TestDocumentSerializationNoThumbs(t *testing.T) {
 		Attributes:    []*mtproto.DocumentAttribute{},
 	}).To_Document()
 
-	serialized, err := serializeDocument(doc)
+	serialized, err := dao.SerializeStickerDoc(doc)
 	if err != nil {
-		t.Fatalf("serializeDocument failed: %v", err)
+		t.Fatalf("SerializeStickerDoc failed: %v", err)
 	}
 
-	restored, err := deserializeDocument(serialized)
+	restored, err := dao.DeserializeStickerDoc(serialized)
 	if err != nil {
-		t.Fatalf("deserializeDocument failed: %v", err)
+		t.Fatalf("DeserializeStickerDoc failed: %v", err)
 	}
 
 	if restored.Id != doc.Id {
@@ -251,34 +222,6 @@ func TestBuildDocumentAttributes(t *testing.T) {
 	t.Log("Document attributes: PASS")
 }
 
-// TestBuildStickerThumbs verifies thumbnail building
-func TestBuildStickerThumbs(t *testing.T) {
-	// With thumbnail
-	sticker := dao.BotAPISticker{
-		Thumbnail: &dao.BotAPIPhotoSize{
-			Width:    128,
-			Height:   128,
-			FileSize: 4096,
-		},
-	}
-	thumbs := buildStickerThumbs(sticker)
-	if len(thumbs) != 1 {
-		t.Fatalf("expected 1 thumb, got %d", len(thumbs))
-	}
-	if thumbs[0].W != 128 || thumbs[0].H != 128 {
-		t.Errorf("thumb size: got %dx%d, want 128x128", thumbs[0].W, thumbs[0].H)
-	}
-
-	// Without thumbnail
-	sticker2 := dao.BotAPISticker{Thumbnail: nil}
-	thumbs2 := buildStickerThumbs(sticker2)
-	if thumbs2 != nil {
-		t.Errorf("expected nil thumbs, got %v", thumbs2)
-	}
-
-	t.Log("Sticker thumbs: PASS")
-}
-
 // TestBuildStickerPacks verifies emoji -> document_id grouping
 func TestBuildStickerPacks(t *testing.T) {
 	docDOs := []dataobject.StickerSetDocumentsDO{
@@ -291,32 +234,27 @@ func TestBuildStickerPacks(t *testing.T) {
 
 	packs := buildStickerPacks(docDOs)
 
-	// Should have 3 packs (😂, 😭, 🦆) — empty emoji skipped
 	if len(packs) != 3 {
 		t.Fatalf("expected 3 packs, got %d", len(packs))
 	}
 
-	// Build a map for easier checking
 	packMap := make(map[string][]int64)
 	for _, p := range packs {
 		packMap[p.Emoticon] = p.Documents
 	}
 
-	// 😂 should have 2 documents
 	if docs, ok := packMap["😂"]; !ok {
 		t.Error("missing pack for 😂")
 	} else if len(docs) != 2 || docs[0] != 1 || docs[1] != 3 {
 		t.Errorf("😂 pack: got %v, want [1, 3]", docs)
 	}
 
-	// 😭 should have 1 document
 	if docs, ok := packMap["😭"]; !ok {
 		t.Error("missing pack for 😭")
 	} else if len(docs) != 1 || docs[0] != 2 {
 		t.Errorf("😭 pack: got %v, want [2]", docs)
 	}
 
-	// 🦆 should have 1 document
 	if docs, ok := packMap["🦆"]; !ok {
 		t.Error("missing pack for 🦆")
 	} else if len(docs) != 1 || docs[0] != 4 {
@@ -378,28 +316,4 @@ func TestMakeStickerSetFromDO(t *testing.T) {
 	}
 
 	t.Log("StickerSet from DO: PASS")
-}
-
-// TestGenerateAccessHash verifies access hash generation for different sticker types
-func TestGenerateAccessHash(t *testing.T) {
-	animated := dao.BotAPISticker{IsAnimated: true}
-	video := dao.BotAPISticker{IsVideo: true}
-	static := dao.BotAPISticker{}
-
-	hashA := generateAccessHash(animated)
-	hashV := generateAccessHash(video)
-	hashS := generateAccessHash(static)
-
-	// Verify they encode the storageType in the upper 32 bits
-	if (hashA >> 32) != 5 {
-		t.Errorf("animated storageType: got %d, want 5", hashA>>32)
-	}
-	if (hashV >> 32) != 3 {
-		t.Errorf("video storageType: got %d, want 3", hashV>>32)
-	}
-	if (hashS >> 32) != 1 {
-		t.Errorf("static storageType: got %d, want 1", hashS>>32)
-	}
-
-	t.Logf("Access hashes: animated=0x%x, video=0x%x, static=0x%x", hashA, hashV, hashS)
 }

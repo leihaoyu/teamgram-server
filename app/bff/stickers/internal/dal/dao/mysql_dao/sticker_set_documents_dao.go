@@ -80,6 +80,28 @@ func (dao *StickerSetDocumentsDAO) SelectPendingDownloadBySetId(ctx context.Cont
 	return
 }
 
+// UpdateDocumentAfterDFSUpload replaces oldDocumentId with newDocumentId, updates document_data,
+// and sets file_downloaded = 1, after DfsUploadDocumentFileV2 assigns a real DFS-backed ID.
+func (dao *StickerSetDocumentsDAO) UpdateDocumentAfterDFSUpload(ctx context.Context, oldDocumentId, newDocumentId int64, newDocumentData string) (rowsAffected int64, err error) {
+	var (
+		query = "update sticker_set_documents set document_id = ?, document_data = ?, file_downloaded = 1 where document_id = ?"
+		r     sql.Result
+	)
+
+	r, err = dao.db.Exec(ctx, query, newDocumentId, newDocumentData, oldDocumentId)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("exec in UpdateDocumentAfterDFSUpload(_), error: %v", err)
+		return
+	}
+
+	rowsAffected, err = r.RowsAffected()
+	if err != nil {
+		logx.WithContext(ctx).Errorf("rowsAffected in UpdateDocumentAfterDFSUpload(_), error: %v", err)
+	}
+
+	return
+}
+
 // UpdateFileDownloaded
 func (dao *StickerSetDocumentsDAO) UpdateFileDownloaded(ctx context.Context, documentId int64) (rowsAffected int64, err error) {
 	var (

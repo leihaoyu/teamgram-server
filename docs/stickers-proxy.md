@@ -1,6 +1,6 @@
 # Stickers 代理模块 (`app/bff/stickers`)
 
-> 通过 Telegram Bot API 代理获取官方贴纸包数据，缓存到本地数据库，并异步下载贴纸文件到 DFS 存储。
+> 通过 Telegram Bot API 代理获取官方贴纸包数据，同步下载贴纸文件到 DFS 存储，缓存到本地数据库。
 
 ---
 
@@ -10,14 +10,16 @@
 
 1. **查本地缓存** — 在 `teamgram_stickers` 数据库中查找该贴纸集
 2. **缓存命中** — 从 `sticker_sets` + `sticker_set_documents` 表反序列化 Document protobuf，直接返回
-3. **缓存未命中** — 通过 Telegram Bot API `getStickerSet` 获取数据，生成本地 ID，写入数据库，返回给客户端
-4. **异步下载** — 在后台通过 Bot API `getFile` + `DownloadFile` 下载贴纸文件，写入 DFS（MinIO），标记完成
+3. **缓存未命中** — 通过 Telegram Bot API 获取元数据，**同步下载所有贴纸文件到 DFS（MinIO）**，写入数据库，返回给客户端
 
 ```
 客户端 → BFF(gRPC) → StickersCore
                          ├─ 命中 → MySQL(sticker_sets + sticker_set_documents) → 返回
-                         └─ 未命中 → Bot API getStickerSet → 写入 MySQL → 返回
-                                                                └─ goroutine: Bot API getFile → DFS
+                         └─ 未命中 → Bot API getStickerSet
+                                        → 并发下载所有文件 (3 workers)
+                                        → DFS 上传 (MinIO)
+                                        → 写入 MySQL
+                                        → 返回 (DFS 真实 docId)
 ```
 
 ---
@@ -38,7 +40,7 @@ app/bff/stickers/
     │   ├── dao.go                               # Dao 聚合 (MySQL + IDGen + Media + DFS + BotAPI)
     │   ├── mysql.go                             # MySQL wrapper
     │   ├── botapi.go                            # Telegram Bot API HTTP 客户端
-    │   └── download.go                          # 异步文件下载管线
+    │   └── download.go                          # 同步文件下载+DFS上传管线
     ├── dal/
     │   ├── dataobject/
     │   │   ├── sticker_sets_do.go               # sticker_sets 表数据对象
@@ -81,14 +83,14 @@ app/bff/stickers/
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | set_id | BIGINT | 所属贴纸集 ID |
-| document_id | BIGINT | 本地生成的文档 ID（唯一索引） |
+| document_id | BIGINT | DFS 分配的文档 ID（唯一索引） |
 | sticker_index | INT | 贴纸在集合中的顺序 |
 | emoji | VARCHAR(64) | 对应的 emoji |
 | bot_file_id | VARCHAR(512) | Bot API file_id（用于下载） |
 | bot_file_unique_id | VARCHAR(256) | Bot API file_unique_id |
 | bot_thumb_file_id | VARCHAR(512) | 缩略图的 Bot API file_id |
 | document_data | MEDIUMTEXT | base64 编码的 protobuf 序列化 Document（缓存恢复用） |
-| file_downloaded | TINYINT | 文件是否已下载到 DFS |
+| file_downloaded | TINYINT | 文件是否已下载到 DFS（同步模式下插入时始终为 1） |
 
 ---
 
@@ -128,34 +130,37 @@ if c.TelegramBotToken != "" {
 
 | 服务 | 用途 |
 |------|------|
-| IDGen | `NextId()` 生成 sticker set ID 和 document ID |
-| DFS | `DfsWriteFilePartData()` 写入贴纸文件到 MinIO |
+| IDGen | `NextId()` 生成 sticker set ID 和临时文件 ID |
+| DFS | `DfsWriteFilePartData()` 写入临时分片 + `DfsUploadDocumentFileV2()` 最终写入 MinIO |
 | Media | 预留（当前缓存方案不依赖 media 的 documents 表） |
 
 ---
 
 ## 核心流程详解
 
-### 1. 首次获取 (fetchAndCacheStickerSet)
+### 1. 首次获取 (fetchAndCacheStickerSet) — 同步下载
 
 ```
 Bot API getStickerSet?name=xxx
         │
         ▼
-遍历 stickers[] ──┐
-  IDGen.NextId() → docId
-  构建 Document protobuf (mime, attributes, thumbs)
-  proto.Marshal(doc) → base64 → document_data
-  └── 写入 sticker_set_documents 表
+为每个 sticker 构建 StickerDownloadInput (mime, attributes)
         │
         ▼
-写入 sticker_sets 表 (set_id, title, data_json, ...)
+DownloadAndUploadStickerFiles (并发 3 workers):
+  ├─ Bot API getFile → file_path
+  ├─ Bot API /file/bot{token}/{path} → []byte
+  ├─ DFS.WriteFilePartData (512KB 分片，写入 SSDB 临时)
+  └─ DFS.UploadDocumentFileV2 → *Document (DFS 分配真实 docId，写入 MinIO)
         │
         ▼
-go DownloadStickerFiles(setId)   ← 异步
+用 DFS 返回的 Document 构建 stickerDocDOs
         │
         ▼
-返回 Messages_StickerSet 给客户端
+INSERT IGNORE sticker_sets + sticker_set_documents
+        │
+        ▼
+返回 Messages_StickerSet 给客户端（docId 即 MinIO 中的真实文件）
 ```
 
 ### 2. 缓存命中 (buildStickerSetFromCache)
@@ -173,19 +178,6 @@ SELECT FROM sticker_set_documents WHERE set_id = ?
         │
         ▼
 返回 Messages_StickerSet 给客户端
-```
-
-### 3. 异步文件下载 (DownloadStickerFiles)
-
-```
-SELECT WHERE file_downloaded = 0
-        │
-        ▼
-并发 3 个 worker:
-  Bot API getFile?file_id=xxx → file_path
-  Bot API /file/bot{token}/{file_path} → []byte
-  DFS.WriteFilePartData (512KB 分片)
-  UPDATE file_downloaded = 1
 ```
 
 ---
@@ -224,7 +216,8 @@ ALTER TABLE teamgram_stickers.sticker_set_documents
 ## 注意事项
 
 1. **Bot Token 安全**: Token 配置在 `bff.yaml` 中，不要提交到公开仓库
-2. **ID 体系独立**: 本地生成的 `set_id` / `document_id` 与 Telegram 官方 ID 无关，是我们自己的 snowflake ID
+2. **ID 体系独立**: 本地 `set_id` 由 IDGen 生成；`document_id` 由 DFS 服务内部 IDGen 生成，与 Telegram 官方 ID 无关
 3. **不写 media 的 documents 表**: Document 序列化后直接存在 `sticker_set_documents.document_data`，不依赖 media 服务持久化
-4. **下载失败不影响查询**: 即使文件下载失败，`getStickerSet` 仍会返回正确的元数据，客户端只是暂时无法加载实际贴纸图片
+4. **首次请求较慢**: 因为需要同步下载所有贴纸文件，首次请求耗时可能较长（取决于贴纸数量和网络），但贴纸图片可立即显示
 5. **贴纸集不会自动刷新**: 一旦缓存了某个贴纸集，后续请求始终返回缓存数据。如需刷新，需手动删除 `sticker_sets` 中对应的行
+6. **并发安全**: 多个客户端同时请求同一个未缓存的贴纸集时，使用 `INSERT IGNORE` + `rowsAffected==0` 回退机制，只有一个请求会完成下载，其余读取已缓存数据

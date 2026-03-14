@@ -16,7 +16,7 @@ const testBotToken = "8784954709:AAF-N47mj6N_UKn3NbJ2HgPWmryOyFjsJI4"
 
 // TestFullFlowFetchSerializeDeserialize simulates the complete flow:
 // 1. Fetch sticker set from Bot API (real call)
-// 2. Build Document protobufs (like fetchAndCacheStickerSet)
+// 2. Build Document protobufs (simulating what DFS would return)
 // 3. Serialize to base64 (like writing to DB)
 // 4. Deserialize back (like reading from DB cache)
 // 5. Verify the final output matches the original
@@ -31,7 +31,7 @@ func TestFullFlowFetchSerializeDeserialize(t *testing.T) {
 	}
 	t.Logf("Fetched sticker set: name=%s, count=%d", botResult.Name, len(botResult.Stickers))
 
-	// --- Step 2: Build Documents (simulating fetchAndCacheStickerSet) ---
+	// --- Step 2: Build Documents (simulating DFS-returned docs) ---
 	setId := int64(999000)
 	setAccessHash := rand.Int63()
 	now := time.Now().Unix()
@@ -45,7 +45,6 @@ func TestFullFlowFetchSerializeDeserialize(t *testing.T) {
 
 	for idx, sticker := range botResult.Stickers {
 		docId := int64(1000000 + idx)
-		docAccessHash := generateAccessHash(sticker)
 		mimeType := stickerMimeType(sticker)
 		fileSize := sticker.FileSize
 		if fileSize == 0 {
@@ -53,26 +52,26 @@ func TestFullFlowFetchSerializeDeserialize(t *testing.T) {
 		}
 
 		attributes := buildDocumentAttributes(sticker, setId, setAccessHash)
-		thumbs := buildStickerThumbs(sticker)
 
+		// Simulate a DFS-returned document (real flow gets this from DfsUploadDocumentFileV2)
 		doc := mtproto.MakeTLDocument(&mtproto.Document{
 			Id:            docId,
-			AccessHash:    docAccessHash,
+			AccessHash:    rand.Int63(),
 			FileReference: []byte{},
 			Date:          int32(now),
 			MimeType:      mimeType,
 			Size2_INT32:   int32(fileSize),
 			Size2_INT64:   fileSize,
-			Thumbs:        thumbs,
+			Thumbs:        nil,
 			VideoThumbs:   nil,
 			DcId:          1,
 			Attributes:    attributes,
 		}).To_Document()
 
 		// Serialize document
-		docData, err := serializeDocument(doc)
+		docData, err := dao.SerializeStickerDoc(doc)
 		if err != nil {
-			t.Fatalf("serializeDocument failed for sticker[%d]: %v", idx, err)
+			t.Fatalf("SerializeStickerDoc failed for sticker[%d]: %v", idx, err)
 		}
 
 		thumbFileId := ""
@@ -89,7 +88,7 @@ func TestFullFlowFetchSerializeDeserialize(t *testing.T) {
 			BotFileUniqueId: sticker.FileUniqueId,
 			BotThumbFileId:  thumbFileId,
 			DocumentData:    docData,
-			FileDownloaded:  false,
+			FileDownloaded:  true,
 		}
 
 		items = append(items, docWithDO{doc: doc, do: do})
@@ -100,9 +99,9 @@ func TestFullFlowFetchSerializeDeserialize(t *testing.T) {
 	// --- Step 3: Simulate cache hit — deserialize from document_data ---
 	restoredDocs := make([]*mtproto.Document, 0, len(items))
 	for i, item := range items {
-		restored, err := deserializeDocument(item.do.DocumentData)
+		restored, err := dao.DeserializeStickerDoc(item.do.DocumentData)
 		if err != nil {
-			t.Fatalf("deserializeDocument failed for sticker[%d]: %v", i, err)
+			t.Fatalf("DeserializeStickerDoc failed for sticker[%d]: %v", i, err)
 		}
 		restoredDocs = append(restoredDocs, restored)
 	}
@@ -116,25 +115,11 @@ func TestFullFlowFetchSerializeDeserialize(t *testing.T) {
 
 		if !proto.Equal(original, restored) {
 			t.Errorf("sticker[%d] proto.Equal failed", i)
-
-			// Debug: check individual fields
 			if original.Id != restored.Id {
 				t.Errorf("  Id: %d vs %d", original.Id, restored.Id)
 			}
-			if original.AccessHash != restored.AccessHash {
-				t.Errorf("  AccessHash: %d vs %d", original.AccessHash, restored.AccessHash)
-			}
 			if original.MimeType != restored.MimeType {
 				t.Errorf("  MimeType: %s vs %s", original.MimeType, restored.MimeType)
-			}
-			if original.Size2_INT64 != restored.Size2_INT64 {
-				t.Errorf("  Size: %d vs %d", original.Size2_INT64, restored.Size2_INT64)
-			}
-			if len(original.Attributes) != len(restored.Attributes) {
-				t.Errorf("  Attributes: %d vs %d", len(original.Attributes), len(restored.Attributes))
-			}
-			if len(original.Thumbs) != len(restored.Thumbs) {
-				t.Errorf("  Thumbs: %d vs %d", len(original.Thumbs), len(restored.Thumbs))
 			}
 		}
 	}
@@ -149,13 +134,11 @@ func TestFullFlowFetchSerializeDeserialize(t *testing.T) {
 		t.Error("packs are empty")
 	}
 
-	// Count total doc references in packs
 	totalRefs := 0
 	for _, p := range packs {
 		totalRefs += len(p.Documents)
 	}
 
-	// Stickers with emoji should equal total refs
 	stickersWithEmoji := 0
 	for _, item := range items {
 		if item.do.Emoji != "" {
@@ -231,33 +214,30 @@ func TestFullFlowMultipleStickerSets(t *testing.T) {
 			setAccessHash := rand.Int63()
 			now := time.Now().Unix()
 
-			// Build and serialize all documents
 			for idx, sticker := range botResult.Stickers {
 				docId := int64(2000000 + idx)
 				mimeType := stickerMimeType(sticker)
 				attrs := buildDocumentAttributes(sticker, setId, setAccessHash)
-				thumbs := buildStickerThumbs(sticker)
 
 				doc := mtproto.MakeTLDocument(&mtproto.Document{
 					Id:            docId,
-					AccessHash:    generateAccessHash(sticker),
+					AccessHash:    rand.Int63(),
 					FileReference: []byte{},
 					Date:          int32(now),
 					MimeType:      mimeType,
 					Size2_INT32:   int32(sticker.FileSize),
 					Size2_INT64:   sticker.FileSize,
-					Thumbs:        thumbs,
 					DcId:          1,
 					Attributes:    attrs,
 				}).To_Document()
 
 				// Roundtrip
-				serialized, err := serializeDocument(doc)
+				serialized, err := dao.SerializeStickerDoc(doc)
 				if err != nil {
 					t.Errorf("sticker[%d] serialize failed: %v", idx, err)
 					continue
 				}
-				restored, err := deserializeDocument(serialized)
+				restored, err := dao.DeserializeStickerDoc(serialized)
 				if err != nil {
 					t.Errorf("sticker[%d] deserialize failed: %v", idx, err)
 					continue
