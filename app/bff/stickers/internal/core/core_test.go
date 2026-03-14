@@ -173,53 +173,94 @@ func TestStickerMimeType(t *testing.T) {
 
 // TestBuildDocumentAttributes verifies document attributes are correctly built
 func TestBuildDocumentAttributes(t *testing.T) {
-	sticker := dao.BotAPISticker{
-		Emoji:        "🦆",
-		Width:        512,
-		Height:       512,
-		FileUniqueId: "AgADtest",
-		IsAnimated:   true,
-	}
+	t.Run("animated TGS", func(t *testing.T) {
+		sticker := dao.BotAPISticker{
+			Emoji:        "🦆",
+			Width:        512,
+			Height:       512,
+			FileUniqueId: "AgADtest",
+			IsAnimated:   true,
+		}
 
-	setId := int64(100)
-	setAccessHash := int64(200)
+		setId := int64(100)
+		setAccessHash := int64(200)
 
-	attrs := buildDocumentAttributes(sticker, setId, setAccessHash)
+		attrs := buildDocumentAttributes(sticker, setId, setAccessHash)
 
-	if len(attrs) != 3 {
-		t.Fatalf("expected 3 attributes, got %d", len(attrs))
-	}
+		if len(attrs) != 3 {
+			t.Fatalf("expected 3 attributes, got %d", len(attrs))
+		}
 
-	// Verify documentAttributeSticker
-	stickerAttr := attrs[0]
-	if stickerAttr.GetAlt() != "🦆" {
-		t.Errorf("sticker alt: got '%s', want '🦆'", stickerAttr.GetAlt())
-	}
-	stickerSetRef := stickerAttr.GetStickerset()
-	if stickerSetRef == nil {
-		t.Fatal("stickerset reference is nil")
-	}
-	if stickerSetRef.GetId() != setId {
-		t.Errorf("stickerset id: got %d, want %d", stickerSetRef.GetId(), setId)
-	}
-	if stickerSetRef.GetAccessHash() != setAccessHash {
-		t.Errorf("stickerset access_hash: got %d, want %d", stickerSetRef.GetAccessHash(), setAccessHash)
-	}
+		// Verify documentAttributeSticker
+		stickerAttr := attrs[0]
+		if stickerAttr.GetAlt() != "🦆" {
+			t.Errorf("sticker alt: got '%s', want '🦆'", stickerAttr.GetAlt())
+		}
+		stickerSetRef := stickerAttr.GetStickerset()
+		if stickerSetRef == nil {
+			t.Fatal("stickerset reference is nil")
+		}
+		if stickerSetRef.GetId() != setId {
+			t.Errorf("stickerset id: got %d, want %d", stickerSetRef.GetId(), setId)
+		}
+		if stickerSetRef.GetAccessHash() != setAccessHash {
+			t.Errorf("stickerset access_hash: got %d, want %d", stickerSetRef.GetAccessHash(), setAccessHash)
+		}
 
-	// Verify documentAttributeImageSize
-	imgAttr := attrs[1]
-	if imgAttr.GetW() != 512 || imgAttr.GetH() != 512 {
-		t.Errorf("image size: got %dx%d, want 512x512", imgAttr.GetW(), imgAttr.GetH())
-	}
+		// Verify documentAttributeImageSize (for non-video stickers)
+		imgAttr := attrs[1]
+		if imgAttr.GetPredicateName() != mtproto.Predicate_documentAttributeImageSize {
+			t.Errorf("expected documentAttributeImageSize, got %s", imgAttr.GetPredicateName())
+		}
+		if imgAttr.GetW() != 512 || imgAttr.GetH() != 512 {
+			t.Errorf("image size: got %dx%d, want 512x512", imgAttr.GetW(), imgAttr.GetH())
+		}
 
-	// Verify documentAttributeFilename
-	fileAttr := attrs[2]
-	expectedName := "AgADtest.tgs"
-	if fileAttr.GetFileName() != expectedName {
-		t.Errorf("filename: got '%s', want '%s'", fileAttr.GetFileName(), expectedName)
-	}
+		// Verify documentAttributeFilename
+		fileAttr := attrs[2]
+		expectedName := "AgADtest.tgs"
+		if fileAttr.GetFileName() != expectedName {
+			t.Errorf("filename: got '%s', want '%s'", fileAttr.GetFileName(), expectedName)
+		}
+	})
 
-	t.Log("Document attributes: PASS")
+	t.Run("video WebM", func(t *testing.T) {
+		sticker := dao.BotAPISticker{
+			Emoji:        "🐶",
+			Width:        512,
+			Height:       512,
+			FileUniqueId: "AgADvideo",
+			IsVideo:      true,
+		}
+
+		setId := int64(100)
+		setAccessHash := int64(200)
+
+		attrs := buildDocumentAttributes(sticker, setId, setAccessHash)
+
+		if len(attrs) != 3 {
+			t.Fatalf("expected 3 attributes, got %d", len(attrs))
+		}
+
+		// Verify documentAttributeVideo (for video stickers)
+		videoAttr := attrs[1]
+		if videoAttr.GetPredicateName() != mtproto.Predicate_documentAttributeVideo {
+			t.Errorf("expected documentAttributeVideo, got %s", videoAttr.GetPredicateName())
+		}
+		if videoAttr.GetW() != 512 || videoAttr.GetH() != 512 {
+			t.Errorf("video size: got %dx%d, want 512x512", videoAttr.GetW(), videoAttr.GetH())
+		}
+		if !videoAttr.GetNosound() {
+			t.Error("video sticker should have Nosound=true")
+		}
+
+		// Verify documentAttributeFilename
+		fileAttr := attrs[2]
+		expectedName := "AgADvideo.webm"
+		if fileAttr.GetFileName() != expectedName {
+			t.Errorf("filename: got '%s', want '%s'", fileAttr.GetFileName(), expectedName)
+		}
+	})
 }
 
 // TestBuildStickerPacks verifies emoji -> document_id grouping

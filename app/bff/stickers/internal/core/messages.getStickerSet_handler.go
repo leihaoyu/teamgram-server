@@ -232,7 +232,7 @@ func stickerExt(s dao.BotAPISticker) string {
 }
 
 func buildDocumentAttributes(s dao.BotAPISticker, setId, setAccessHash int64) []*mtproto.DocumentAttribute {
-	attrs := make([]*mtproto.DocumentAttribute, 0, 3)
+	attrs := make([]*mtproto.DocumentAttribute, 0, 4)
 
 	attrs = append(attrs, mtproto.MakeTLDocumentAttributeSticker(&mtproto.DocumentAttribute{
 		Alt: s.Emoji,
@@ -242,10 +242,19 @@ func buildDocumentAttributes(s dao.BotAPISticker, setId, setAccessHash int64) []
 		}).To_InputStickerSet(),
 	}).To_DocumentAttribute())
 
-	attrs = append(attrs, mtproto.MakeTLDocumentAttributeImageSize(&mtproto.DocumentAttribute{
-		W: s.Width,
-		H: s.Height,
-	}).To_DocumentAttribute())
+	if s.IsVideo {
+		// Video stickers (WebM) need documentAttributeVideo for clients to render them
+		attrs = append(attrs, mtproto.MakeTLDocumentAttributeVideo(&mtproto.DocumentAttribute{
+			W:       s.Width,
+			H:       s.Height,
+			Nosound: true,
+		}).To_DocumentAttribute())
+	} else {
+		attrs = append(attrs, mtproto.MakeTLDocumentAttributeImageSize(&mtproto.DocumentAttribute{
+			W: s.Width,
+			H: s.Height,
+		}).To_DocumentAttribute())
+	}
 
 	attrs = append(attrs, mtproto.MakeTLDocumentAttributeFilename(&mtproto.DocumentAttribute{
 		FileName: s.FileUniqueId + stickerExt(s),
