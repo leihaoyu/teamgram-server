@@ -38,6 +38,11 @@ func (d *Dao) DownloadStickerFiles(ctx context.Context, setId int64) {
 		sem <- struct{}{}
 		go func() {
 			defer func() { <-sem }()
+			defer func() {
+				if r := recover(); r != nil {
+					logx.WithContext(ctx).Errorf("downloadOneStickerFile panic for doc %d: %v", doc.DocumentId, r)
+				}
+			}()
 			d.downloadOneStickerFile(ctx, doc.DocumentId, doc.BotFileId)
 		}()
 	}

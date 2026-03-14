@@ -12,14 +12,12 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/stickers/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/bff/stickers/internal/dao"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // MessagesGetStickerSet handles the messages.getStickerSet TL method.
 func (c *StickersCore) MessagesGetStickerSet(in *mtproto.TLMessagesGetStickerSet) (*mtproto.Messages_StickerSet, error) {
-	var (
-		shortName string
-		setId     int64
-	)
+	var shortName string
 
 	stickerSet := in.GetStickerset()
 	if stickerSet == nil {
@@ -31,17 +29,16 @@ func (c *StickersCore) MessagesGetStickerSet(in *mtproto.TLMessagesGetStickerSet
 	case mtproto.Predicate_inputStickerSetShortName:
 		shortName = stickerSet.GetShortName()
 	case mtproto.Predicate_inputStickerSetID:
-		setId = stickerSet.GetId()
-		// Look up short_name from DB by set_id
-		setDO, err := c.svcCtx.Dao.StickerSetsDAO.SelectBySetId(c.ctx, setId)
+		// Look up from DB by set_id — if found, return directly from cache (no second query)
+		setDO, err := c.svcCtx.Dao.StickerSetsDAO.SelectBySetId(c.ctx, stickerSet.GetId())
 		if err != nil {
-			c.Logger.Errorf("messages.getStickerSet - SelectBySetId(%d) error: %v", setId, err)
+			c.Logger.Errorf("messages.getStickerSet - SelectBySetId(%d) error: %v", stickerSet.GetId(), err)
 			return nil, mtproto.ErrStickerIdInvalid
 		}
 		if setDO == nil {
 			return nil, mtproto.ErrStickerIdInvalid
 		}
-		shortName = setDO.ShortName
+		return c.buildStickerSetFromCache(setDO)
 	default:
 		c.Logger.Errorf("messages.getStickerSet - unsupported predicate: %s", stickerSet.GetPredicateName())
 		return nil, mtproto.ErrStickerIdInvalid
@@ -201,17 +198,28 @@ func (c *StickersCore) fetchAndCacheStickerSet(shortName string) (*mtproto.Messa
 		FetchedAt:    now,
 	}
 
-	_, _, err = c.svcCtx.Dao.StickerSetsDAO.Insert(c.ctx, setDO)
+	_, rowsAffected, err := c.svcCtx.Dao.StickerSetsDAO.InsertIgnore(c.ctx, setDO)
 	if err != nil {
-		c.Logger.Errorf("fetchAndCacheStickerSet - Insert sticker_sets error: %v", err)
+		c.Logger.Errorf("fetchAndCacheStickerSet - InsertIgnore sticker_sets error: %v", err)
 		return nil, mtproto.ErrInternelServerError
+	}
+
+	// Another concurrent request already inserted this set — fall back to cached data
+	if rowsAffected == 0 {
+		c.Logger.Infof("fetchAndCacheStickerSet - set %s already cached by another request, falling back", shortName)
+		cachedDO, err2 := c.svcCtx.Dao.StickerSetsDAO.SelectByShortName(c.ctx, shortName)
+		if err2 != nil || cachedDO == nil {
+			c.Logger.Errorf("fetchAndCacheStickerSet - fallback SelectByShortName(%s) error: %v", shortName, err2)
+			return nil, mtproto.ErrInternelServerError
+		}
+		return c.buildStickerSetFromCache(cachedDO)
 	}
 
 	// Save individual sticker document mappings
 	for _, docDO := range stickerDocDOs {
-		_, _, err = c.svcCtx.Dao.StickerSetDocumentsDAO.Insert(c.ctx, docDO)
+		_, _, err = c.svcCtx.Dao.StickerSetDocumentsDAO.InsertIgnore(c.ctx, docDO)
 		if err != nil {
-			c.Logger.Errorf("fetchAndCacheStickerSet - Insert sticker_set_documents error: %v", err)
+			c.Logger.Errorf("fetchAndCacheStickerSet - InsertIgnore sticker_set_documents error: %v", err)
 		}
 	}
 
@@ -221,8 +229,17 @@ func (c *StickersCore) fetchAndCacheStickerSet(shortName string) (*mtproto.Messa
 	// Build StickerSet protobuf
 	stickerSetPB := makeStickerSetFromDO(setDO)
 
-	// Kick off async file downloads
-	go c.svcCtx.Dao.DownloadStickerFiles(context.Background(), setId)
+	// Kick off async file downloads with timeout
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logx.Errorf("DownloadStickerFiles panic: %v", r)
+			}
+		}()
+		dlCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		c.svcCtx.Dao.DownloadStickerFiles(dlCtx, setId)
+	}()
 
 	return mtproto.MakeTLMessagesStickerSet(&mtproto.Messages_StickerSet{
 		Set:       stickerSetPB,

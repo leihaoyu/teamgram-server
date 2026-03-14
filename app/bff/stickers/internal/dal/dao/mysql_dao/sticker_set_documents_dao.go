@@ -20,27 +20,27 @@ func NewStickerSetDocumentsDAO(db *sqlx.DB) *StickerSetDocumentsDAO {
 	return &StickerSetDocumentsDAO{db}
 }
 
-// Insert
-func (dao *StickerSetDocumentsDAO) Insert(ctx context.Context, do *dataobject.StickerSetDocumentsDO) (lastInsertId, rowsAffected int64, err error) {
+// InsertIgnore inserts a sticker document, ignoring duplicate document_id conflicts.
+func (dao *StickerSetDocumentsDAO) InsertIgnore(ctx context.Context, do *dataobject.StickerSetDocumentsDO) (lastInsertId, rowsAffected int64, err error) {
 	var (
-		query = "insert into sticker_set_documents(set_id, document_id, sticker_index, emoji, bot_file_id, bot_file_unique_id, bot_thumb_file_id, document_data, file_downloaded) values (:set_id, :document_id, :sticker_index, :emoji, :bot_file_id, :bot_file_unique_id, :bot_thumb_file_id, :document_data, :file_downloaded)"
+		query = "insert ignore into sticker_set_documents(set_id, document_id, sticker_index, emoji, bot_file_id, bot_file_unique_id, bot_thumb_file_id, document_data, file_downloaded) values (:set_id, :document_id, :sticker_index, :emoji, :bot_file_id, :bot_file_unique_id, :bot_thumb_file_id, :document_data, :file_downloaded)"
 		r     sql.Result
 	)
 
 	r, err = dao.db.NamedExec(ctx, query, do)
 	if err != nil {
-		logx.WithContext(ctx).Errorf("namedExec in Insert(%v), error: %v", do, err)
+		logx.WithContext(ctx).Errorf("namedExec in InsertIgnore(%v), error: %v", do, err)
 		return
 	}
 
 	lastInsertId, err = r.LastInsertId()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("lastInsertId in Insert(%v)_error: %v", do, err)
+		logx.WithContext(ctx).Errorf("lastInsertId in InsertIgnore(%v)_error: %v", do, err)
 		return
 	}
 	rowsAffected, err = r.RowsAffected()
 	if err != nil {
-		logx.WithContext(ctx).Errorf("rowsAffected in Insert(%v)_error: %v", do, err)
+		logx.WithContext(ctx).Errorf("rowsAffected in InsertIgnore(%v)_error: %v", do, err)
 	}
 
 	return
