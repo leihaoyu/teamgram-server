@@ -9,6 +9,7 @@ export ETCD_URL=${ETCD_URL:-"etcd:2379"}
 export REDIS_HOST=${REDIS_HOST:-"redis:6379"}
 export KAFKA_HOST=${KAFKA_HOST:-"kafka:9092"}
 export MYSQL_URI=${MYSQL_URI:-"teamgram:teamgram@tcp(mysql:3306)/teamgram?charset=utf8mb4"}
+export STICKERS_MYSQL_URI=${STICKERS_MYSQL_URI:-"teamgram:teamgram@tcp(mysql:3306)/teamgram_stickers?charset=utf8mb4&parseTime=true"}
 export MINIO_URI=${MINIO_URI:-"minio:9000"}
 export MINIO_KEY=${MINIO_KEY:-"minio"}
 export MINIO_SECRET=${MINIO_SECRET:-"miniostorage"}
@@ -26,6 +27,7 @@ createConfigs() {
       | sed "s#127.0.0.1:6379#$REDIS_HOST#g" \
       | sed "s#localhost:6379#$REDIS_HOST#g" \
       | sed "s#root:@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4#$MYSQL_URI#g" \
+      | sed "s#root:@tcp(127.0.0.1:3306)/teamgram_stickers?charset=utf8mb4&parseTime=true#$STICKERS_MYSQL_URI#g" \
       | sed 's#AccessKeyID: minio#AccessKeyID: '"$MINIO_KEY"'#g' \
       | sed 's#SecretAccessKey: miniostorage#SecretAccessKey: '"$MINIO_SECRET"'#g' \
       | sed 's#UseSSL: false#UseSSL: '"$MINIO_SSL"'#g' \
