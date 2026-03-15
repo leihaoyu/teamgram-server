@@ -360,3 +360,137 @@ func TestMakeStickerSetFromDO(t *testing.T) {
 
 	t.Log("StickerSet from DO: PASS")
 }
+
+// TestExtractStickerEmoji tests emoji extraction from Document attributes.
+func TestExtractStickerEmoji(t *testing.T) {
+	doc := mtproto.MakeTLDocument(&mtproto.Document{
+		Id:         123,
+		AccessHash: 456,
+		MimeType:   "image/webp",
+		Attributes: []*mtproto.DocumentAttribute{
+			mtproto.MakeTLDocumentAttributeSticker(&mtproto.DocumentAttribute{
+				Alt: "🦆",
+				Stickerset: mtproto.MakeTLInputStickerSetID(&mtproto.InputStickerSet{
+					Id: 1, AccessHash: 2,
+				}).To_InputStickerSet(),
+			}).To_DocumentAttribute(),
+			mtproto.MakeTLDocumentAttributeImageSize(&mtproto.DocumentAttribute{
+				W: 512, H: 512,
+			}).To_DocumentAttribute(),
+		},
+	}).To_Document()
+
+	emoji := extractStickerEmoji(doc)
+	if emoji != "🦆" {
+		t.Errorf("extractStickerEmoji: got %q, want %q", emoji, "🦆")
+	}
+
+	// Test with no sticker attribute
+	docNoSticker := mtproto.MakeTLDocument(&mtproto.Document{
+		Id:       789,
+		MimeType: "image/webp",
+		Attributes: []*mtproto.DocumentAttribute{
+			mtproto.MakeTLDocumentAttributeImageSize(&mtproto.DocumentAttribute{
+				W: 512, H: 512,
+			}).To_DocumentAttribute(),
+		},
+	}).To_Document()
+
+	emoji2 := extractStickerEmoji(docNoSticker)
+	if emoji2 != "" {
+		t.Errorf("extractStickerEmoji(no sticker attr): got %q, want empty", emoji2)
+	}
+
+	t.Log("extractStickerEmoji: PASS")
+}
+
+// TestComputeRecentStickersHash tests hash computation and consistency.
+func TestComputeRecentStickersHash(t *testing.T) {
+	// Empty rows → hash 0
+	h0 := computeRecentStickersHash(nil)
+	if h0 != 0 {
+		t.Errorf("empty hash: got %d, want 0", h0)
+	}
+
+	rows := []dataobject.UserRecentStickersDO{
+		{DocumentId: 100, Date2: 1000},
+		{DocumentId: 200, Date2: 999},
+		{DocumentId: 300, Date2: 998},
+	}
+
+	h1 := computeRecentStickersHash(rows)
+	h2 := computeRecentStickersHash(rows)
+	if h1 != h2 {
+		t.Errorf("hash not stable: %d vs %d", h1, h2)
+	}
+	if h1 == 0 {
+		t.Error("hash should not be 0 for non-empty rows")
+	}
+
+	// Different order → different hash
+	rows2 := []dataobject.UserRecentStickersDO{
+		{DocumentId: 200, Date2: 999},
+		{DocumentId: 100, Date2: 1000},
+		{DocumentId: 300, Date2: 998},
+	}
+	h3 := computeRecentStickersHash(rows2)
+	if h3 == h1 {
+		t.Error("different order should produce different hash")
+	}
+
+	t.Logf("computeRecentStickersHash: PASS (h1=%d, h3=%d)", h1, h3)
+}
+
+// TestBuildUserStickerPacks tests emoji→documentId grouping for recent stickers.
+func TestBuildUserStickerPacks(t *testing.T) {
+	rows := []dataobject.UserRecentStickersDO{
+		{DocumentId: 1, Emoji: "😂"},
+		{DocumentId: 2, Emoji: "🦆"},
+		{DocumentId: 3, Emoji: "😂"},
+		{DocumentId: 4, Emoji: ""},
+	}
+
+	packs := buildUserStickerPacks(rows)
+
+	emojiMap := make(map[string][]int64)
+	for _, p := range packs {
+		emojiMap[p.GetEmoticon()] = p.GetDocuments()
+	}
+
+	if len(packs) != 2 {
+		t.Errorf("expected 2 packs, got %d", len(packs))
+	}
+	if docs, ok := emojiMap["😂"]; !ok || len(docs) != 2 {
+		t.Errorf("😂 pack: got %v", docs)
+	}
+	if docs, ok := emojiMap["🦆"]; !ok || len(docs) != 1 {
+		t.Errorf("🦆 pack: got %v", docs)
+	}
+
+	t.Log("buildUserStickerPacks: PASS")
+}
+
+// TestBuildFavedStickerPacks tests emoji→documentId grouping for faved stickers.
+func TestBuildFavedStickerPacks(t *testing.T) {
+	rows := []dataobject.UserFavedStickersDO{
+		{DocumentId: 10, Emoji: "❤️"},
+		{DocumentId: 20, Emoji: "❤️"},
+		{DocumentId: 30, Emoji: "😎"},
+	}
+
+	packs := buildFavedStickerPacks(rows)
+
+	emojiMap := make(map[string][]int64)
+	for _, p := range packs {
+		emojiMap[p.GetEmoticon()] = p.GetDocuments()
+	}
+
+	if len(packs) != 2 {
+		t.Errorf("expected 2 packs, got %d", len(packs))
+	}
+	if docs, ok := emojiMap["❤️"]; !ok || len(docs) != 2 {
+		t.Errorf("❤️ pack: got %v", docs)
+	}
+
+	t.Log("buildFavedStickerPacks: PASS")
+}

@@ -61,13 +61,94 @@
 4. 返回 upload.File{type, bytes}
 ```
 
+## 最近使用 & 收藏贴纸
+
+### 功能概述
+
+实现了 5 个 MTProto 方法，支持客户端的「最近使用」和「收藏」贴纸面板：
+
+| 方法 | 功能 |
+|------|------|
+| `messages.getRecentStickers` | 获取用户最近使用的贴纸列表（最多 200 条） |
+| `messages.saveRecentSticker` | 保存/移除最近使用的贴纸 |
+| `messages.clearRecentStickers` | 清空所有最近使用的贴纸 |
+| `messages.getFavedStickers` | 获取用户收藏的贴纸列表（最多 200 条） |
+| `messages.faveSticker` | 收藏/取消收藏贴纸 |
+
+### 数据模型
+
+两张 per-user 表存储在 `teamgram_stickers` 数据库中：
+
+```sql
+-- 最近使用
+CREATE TABLE user_recent_stickers (
+  user_id       BIGINT NOT NULL,
+  document_id   BIGINT NOT NULL,
+  emoji         VARCHAR(64),       -- 从 documentAttributeSticker.Alt 提取
+  document_data MEDIUMTEXT,        -- base64 protobuf Document（与 sticker_set_documents 格式相同）
+  date2         BIGINT,            -- unix timestamp，用于排序和返回给客户端
+  deleted       TINYINT(1),        -- 软删除标志
+  UNIQUE KEY (user_id, document_id)
+);
+
+-- 收藏
+CREATE TABLE user_faved_stickers (
+  -- 结构同 user_recent_stickers
+);
+```
+
+核心设计：`document_data` 存储完整的 `Document` protobuf 序列化结果（base64），Save 时调用 `MediaGetDocument` 获取一次，后续 Get 直接反序列化，无需再调 media 服务。
+
+### 请求/响应流程
+
+**Save (saveRecentSticker / faveSticker)**:
+```
+1. 客户端发送 InputDocument{id, accessHash}
+2. unsave/unfave=true → 软删除 (UPDATE SET deleted=1)
+3. unsave/unfave=false:
+   a. MediaClient.MediaGetDocument(docId) → 获取完整 Document
+   b. 从 documentAttributeSticker.Alt 提取 emoji
+   c. SerializeStickerDoc(doc) → base64 protobuf
+   d. INSERT ... ON DUPLICATE KEY UPDATE (upsert)
+4. 返回 BoolTrue
+```
+
+**Get (getRecentStickers / getFavedStickers)**:
+```
+1. SELECT ... WHERE user_id=? AND deleted=0 ORDER BY date2 DESC LIMIT 200
+2. 反序列化每条 document_data → []*Document
+3. 按 emoji 分组 → []*StickerPack
+4. 计算 hash（fnv64a over document IDs）
+5. 如果 request.hash == computed hash → 返回 NotModified
+6. 否则返回完整 Messages_RecentStickers / Messages_FavedStickers
+```
+
+**Clear (clearRecentStickers)**:
+```
+UPDATE user_recent_stickers SET deleted=1 WHERE user_id=? AND deleted=0
+```
+
+### NotModified 支持
+
+客户端发送上次收到的 `hash` 值，服务端计算当前 hash（对所有 documentId 做 fnv64a），如果相等返回 `messagesRecentStickersNotModified` / `messagesFavedStickersNotModified`，节省带宽。
+
+### 关键文件
+
+| 文件 | 用途 |
+|------|------|
+| `app/bff/stickers/internal/core/messages.recentAndFavedStickers_handler.go` | 5 个方法的核心逻辑 |
+| `app/bff/stickers/internal/dal/dao/mysql_dao/user_recent_stickers_dao.go` | 最近贴纸 DAO |
+| `app/bff/stickers/internal/dal/dao/mysql_dao/user_faved_stickers_dao.go` | 收藏贴纸 DAO |
+| `app/bff/stickers/internal/dal/dataobject/user_recent_stickers_do.go` | 最近贴纸数据对象 |
+| `app/bff/stickers/internal/dal/dataobject/user_faved_stickers_do.go` | 收藏贴纸数据对象 |
+
 ## 关键文件
 
 | 文件 | 用途 |
 |------|------|
 | `app/bff/stickers/internal/core/messages.getStickerSet_handler.go` | 主处理器：获取/缓存/返回贴纸集 |
 | `app/bff/stickers/internal/dao/download.go` | 下载 & 上传逻辑，序列化/反序列化 |
-| `app/bff/stickers/internal/dal/dao/mysql_dao/` | MySQL DAO（sticker_sets, sticker_set_documents） |
+| `app/bff/stickers/internal/dal/dao/mysql_dao/` | MySQL DAO（sticker_sets, sticker_set_documents, user_recent/faved_stickers） |
 | `app/service/dfs/internal/core/dfs.uploadDocumentFileV2_handler.go` | DFS 通用文件上传处理器 |
 | `app/service/dfs/internal/core/dfs.downloadFile_handler.go` | DFS 文件下载处理器 |
 | `app/service/dfs/internal/model/image_util.go` | 文件类型映射（扩展名 → storage.FileType） |
@@ -186,6 +267,21 @@ CREATE TABLE sticker_set_documents (
   document_data TEXT,          -- base64 encoded protobuf Document
   file_downloaded TINYINT(1),
   PRIMARY KEY (set_id, document_id)
+);
+```
+
+### user_recent_stickers / user_faved_stickers
+```sql
+CREATE TABLE user_recent_stickers (   -- user_faved_stickers 结构相同
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT NOT NULL,
+  document_id BIGINT NOT NULL,
+  emoji VARCHAR(64),
+  document_data MEDIUMTEXT,           -- base64 encoded protobuf Document
+  date2 BIGINT,                       -- unix timestamp
+  deleted TINYINT(1) DEFAULT 0,       -- 软删除标志
+  UNIQUE KEY (user_id, document_id),
+  KEY (user_id)
 );
 ```
 

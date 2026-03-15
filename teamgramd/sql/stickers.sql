@@ -41,3 +41,33 @@ CREATE TABLE IF NOT EXISTS sticker_set_documents (
   KEY idx_set_id (set_id),
   UNIQUE KEY idx_document_id (document_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS user_recent_stickers (
+  id            BIGINT NOT NULL AUTO_INCREMENT,
+  user_id       BIGINT NOT NULL,
+  document_id   BIGINT NOT NULL,
+  emoji         VARCHAR(64) NOT NULL DEFAULT '',
+  document_data MEDIUMTEXT NOT NULL,
+  date2         BIGINT NOT NULL DEFAULT 0,
+  deleted       TINYINT(1) NOT NULL DEFAULT 0,
+  created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY idx_user_document (user_id, document_id),
+  KEY idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS user_faved_stickers (
+  id            BIGINT NOT NULL AUTO_INCREMENT,
+  user_id       BIGINT NOT NULL,
+  document_id   BIGINT NOT NULL,
+  emoji         VARCHAR(64) NOT NULL DEFAULT '',
+  document_data MEDIUMTEXT NOT NULL,
+  date2         BIGINT NOT NULL DEFAULT 0,
+  deleted       TINYINT(1) NOT NULL DEFAULT 0,
+  created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY idx_user_document (user_id, document_id),
+  KEY idx_user_id (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

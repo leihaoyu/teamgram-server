@@ -65,20 +65,21 @@ func (s *Service) MessagesReadFeaturedStickers(ctx context.Context, request *mtp
 }
 
 func (s *Service) MessagesGetRecentStickers(ctx context.Context, request *mtproto.TLMessagesGetRecentStickers) (*mtproto.Messages_RecentStickers, error) {
-	return mtproto.MakeTLMessagesRecentStickers(&mtproto.Messages_RecentStickers{
-		Hash:     0,
-		Packs:    []*mtproto.StickerPack{},
-		Stickers: []*mtproto.Document{},
-		Dates:    []int32{},
-	}).To_Messages_RecentStickers(), nil
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getRecentStickers - metadata: %s, request: %s", c.MD, request)
+	return c.MessagesGetRecentStickers(request)
 }
 
 func (s *Service) MessagesSaveRecentSticker(ctx context.Context, request *mtproto.TLMessagesSaveRecentSticker) (*mtproto.Bool, error) {
-	return mtproto.BoolTrue, nil
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.saveRecentSticker - metadata: %s, request: %s", c.MD, request)
+	return c.MessagesSaveRecentSticker(request)
 }
 
 func (s *Service) MessagesClearRecentStickers(ctx context.Context, request *mtproto.TLMessagesClearRecentStickers) (*mtproto.Bool, error) {
-	return mtproto.BoolTrue, nil
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.clearRecentStickers - metadata: %s, request: %s", c.MD, request)
+	return c.MessagesClearRecentStickers(request)
 }
 
 func (s *Service) MessagesGetArchivedStickers(ctx context.Context, request *mtproto.TLMessagesGetArchivedStickers) (*mtproto.Messages_ArchivedStickers, error) {
@@ -102,15 +103,15 @@ func (s *Service) MessagesGetAttachedStickers(ctx context.Context, request *mtpr
 }
 
 func (s *Service) MessagesGetFavedStickers(ctx context.Context, request *mtproto.TLMessagesGetFavedStickers) (*mtproto.Messages_FavedStickers, error) {
-	return mtproto.MakeTLMessagesFavedStickers(&mtproto.Messages_FavedStickers{
-		Hash:     0,
-		Packs:    []*mtproto.StickerPack{},
-		Stickers: []*mtproto.Document{},
-	}).To_Messages_FavedStickers(), nil
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getFavedStickers - metadata: %s, request: %s", c.MD, request)
+	return c.MessagesGetFavedStickers(request)
 }
 
 func (s *Service) MessagesFaveSticker(ctx context.Context, request *mtproto.TLMessagesFaveSticker) (*mtproto.Bool, error) {
-	return mtproto.BoolTrue, nil
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.faveSticker - metadata: %s, request: %s", c.MD, request)
+	return c.MessagesFaveSticker(request)
 }
 
 func (s *Service) MessagesSearchStickerSets(ctx context.Context, request *mtproto.TLMessagesSearchStickerSets) (*mtproto.Messages_FoundStickerSets, error) {
