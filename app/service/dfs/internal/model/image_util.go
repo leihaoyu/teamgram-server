@@ -85,6 +85,8 @@ func GetStorageFileTypeConstructor(extName string) int32 {
 		c = mtproto.CRC32_storage_fileMp4
 	case ".webp":
 		c = mtproto.CRC32_storage_fileWebp
+	case ".webm":
+		c = mtproto.CRC32_storage_fileMp4
 	default:
 		c = mtproto.CRC32_storage_filePartial
 	}

@@ -7,6 +7,7 @@ import (
 	"math"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/gogo/protobuf/types"
@@ -19,7 +20,7 @@ import (
 
 const (
 	filePartSize    = 512 * 1024 // 512KB per part
-	downloadWorkers = 3
+	downloadWorkers = 10
 )
 
 // StickerDownloadInput holds the info needed to download one sticker file and upload it to DFS.
@@ -37,6 +38,10 @@ func (d *Dao) DownloadAndUploadStickerFiles(ctx context.Context, inputs []Sticke
 	if len(inputs) == 0 {
 		return nil, nil
 	}
+
+	log := logx.WithContext(ctx)
+	startAll := time.Now()
+	log.Infof("DownloadAndUploadStickerFiles - start: %d stickers, workers=%d", len(inputs), downloadWorkers)
 
 	results := make([]*mtproto.Document, len(inputs))
 	var (
@@ -83,28 +88,33 @@ func (d *Dao) DownloadAndUploadStickerFiles(ctx context.Context, inputs []Sticke
 	wg.Wait()
 
 	if firstErr != nil {
+		log.Errorf("DownloadAndUploadStickerFiles - FAILED after %v: %v", time.Since(startAll), firstErr)
 		return nil, firstErr
 	}
 
+	log.Infof("DownloadAndUploadStickerFiles - SUCCESS: %d stickers in %v", len(inputs), time.Since(startAll))
 	return results, nil
 }
 
-// downloadAndUploadOne downloads a single sticker file from Bot API and uploads it to DFS.
-// Returns the DFS-backed Document with the real DFS-assigned ID.
+// downloadAndUploadOne downloads a single sticker file from Bot API and uploads it via media service.
+// Returns the Document with the real DFS-assigned ID, registered in the main documents table.
 func (d *Dao) downloadAndUploadOne(ctx context.Context, input *StickerDownloadInput) (*mtproto.Document, error) {
 	log := logx.WithContext(ctx)
+	start := time.Now()
 
 	// 1. Get file path from Bot API
 	fileInfo, err := d.BotAPI.GetFile(ctx, input.BotFileId)
 	if err != nil {
 		return nil, fmt.Errorf("GetFile: %w", err)
 	}
+	tGetFile := time.Since(start)
 
 	// 2. Download the file bytes
 	data, err := d.BotAPI.DownloadFile(ctx, fileInfo.FilePath)
 	if err != nil {
 		return nil, fmt.Errorf("DownloadFile: %w", err)
 	}
+	tDownload := time.Since(start)
 
 	// 3. Use a temporary fileId for SSDB parts (IDGen gives us a unique key)
 	tempFileId := d.IDGenClient2.NextId(ctx)
@@ -163,8 +173,9 @@ func (d *Dao) downloadAndUploadOne(ctx context.Context, input *StickerDownloadIn
 		return nil, fmt.Errorf("MediaUploadedDocumentMedia returned nil document")
 	}
 
-	log.Infof("downloadAndUploadOne - %s → doc %d (%d bytes, %d parts)",
-		input.BotFileUniqueId, dfsDoc.GetId(), len(data), totalParts)
+	log.Infof("downloadAndUploadOne - %s → doc %d (%d bytes, %d parts) getFile=%v download=%v total=%v",
+		input.BotFileUniqueId, dfsDoc.GetId(), len(data), totalParts,
+		tGetFile, tDownload, time.Since(start))
 
 	return dfsDoc, nil
 }

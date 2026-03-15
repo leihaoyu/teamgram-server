@@ -90,11 +90,16 @@ func (c *StickersCore) buildStickerSetFromCache(setDO *dataobject.StickerSetsDO)
 // fetchAndCacheStickerSet fetches a sticker set from Telegram Bot API, downloads all files
 // to DFS synchronously, saves everything to DB, and returns the response.
 func (c *StickersCore) fetchAndCacheStickerSet(shortName string) (*mtproto.Messages_StickerSet, error) {
+	startTotal := time.Now()
+
 	botResult, err := c.svcCtx.Dao.BotAPI.GetStickerSet(c.ctx, shortName)
 	if err != nil {
 		c.Logger.Errorf("fetchAndCacheStickerSet - BotAPI.GetStickerSet(%s) error: %v", shortName, err)
 		return nil, mtproto.ErrStickerIdInvalid
 	}
+
+	c.Logger.Infof("fetchAndCacheStickerSet(%s) - got %d stickers from Bot API in %v",
+		shortName, len(botResult.Stickers), time.Since(startTotal))
 
 	// Generate set IDs
 	setId := c.svcCtx.Dao.IDGenClient2.NextId(c.ctx)
@@ -201,6 +206,9 @@ func (c *StickersCore) fetchAndCacheStickerSet(shortName string) (*mtproto.Messa
 	packs := buildStickerPacks2(stickerDocDOs)
 	stickerSetPB := makeStickerSetFromDO(setDO)
 
+	c.Logger.Infof("fetchAndCacheStickerSet(%s) - DONE: %d docs, total=%v",
+		shortName, len(dfsDocs), time.Since(startTotal))
+
 	return mtproto.MakeTLMessagesStickerSet(&mtproto.Messages_StickerSet{
 		Set:       stickerSetPB,
 		Packs:     packs,
@@ -243,11 +251,10 @@ func buildDocumentAttributes(s dao.BotAPISticker, setId, setAccessHash int64) []
 	}).To_DocumentAttribute())
 
 	if s.IsVideo {
-		// Video stickers (WebM) need documentAttributeVideo for clients to render them
 		attrs = append(attrs, mtproto.MakeTLDocumentAttributeVideo(&mtproto.DocumentAttribute{
-			W:       s.Width,
-			H:       s.Height,
-			Nosound: true,
+			W:        s.Width,
+			H:        s.Height,
+			Duration: 0,
 		}).To_DocumentAttribute())
 	} else {
 		attrs = append(attrs, mtproto.MakeTLDocumentAttributeImageSize(&mtproto.DocumentAttribute{

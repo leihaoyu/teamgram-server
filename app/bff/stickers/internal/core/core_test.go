@@ -242,7 +242,12 @@ func TestBuildDocumentAttributes(t *testing.T) {
 			t.Fatalf("expected 3 attributes, got %d", len(attrs))
 		}
 
-		// Verify documentAttributeVideo (for video stickers)
+		// [0] documentAttributeSticker
+		if attrs[0].GetPredicateName() != mtproto.Predicate_documentAttributeSticker {
+			t.Errorf("expected documentAttributeSticker, got %s", attrs[0].GetPredicateName())
+		}
+
+		// [1] documentAttributeVideo for video stickers
 		videoAttr := attrs[1]
 		if videoAttr.GetPredicateName() != mtproto.Predicate_documentAttributeVideo {
 			t.Errorf("expected documentAttributeVideo, got %s", videoAttr.GetPredicateName())
@@ -250,11 +255,8 @@ func TestBuildDocumentAttributes(t *testing.T) {
 		if videoAttr.GetW() != 512 || videoAttr.GetH() != 512 {
 			t.Errorf("video size: got %dx%d, want 512x512", videoAttr.GetW(), videoAttr.GetH())
 		}
-		if !videoAttr.GetNosound() {
-			t.Error("video sticker should have Nosound=true")
-		}
 
-		// Verify documentAttributeFilename
+		// [2] documentAttributeFilename with .webm extension
 		fileAttr := attrs[2]
 		expectedName := "AgADvideo.webm"
 		if fileAttr.GetFileName() != expectedName {

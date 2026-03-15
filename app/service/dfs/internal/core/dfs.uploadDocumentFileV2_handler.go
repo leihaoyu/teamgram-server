@@ -97,7 +97,7 @@ func (c *DfsCore) DfsUploadDocumentFileV2(in *dfs.TLDfsUploadDocumentFileV2) (*m
 	document := mtproto.MakeTLDocument(&mtproto.Document{
 		Id:            documentId,
 		AccessHash:    accessHash,
-		FileReference: nil,
+		FileReference: []byte{},
 		Date:          int32(r.DfsFileInfo.Mtime),
 		MimeType:      in.GetMedia().GetMimeType(),
 		Size2_INT32:   int32(r.DfsFileInfo.GetFileSize()),
