@@ -611,3 +611,213 @@ func TestStickerSetType(t *testing.T) {
 
 	t.Log("stickerSetType: PASS")
 }
+
+// ==============================================================================
+// Tests for auto-save recent sticker logic (mirrors messages_plugin.go behavior)
+// ==============================================================================
+
+// TestAutoSaveStickerDetection verifies sticker detection from MessageMedia.
+func TestAutoSaveStickerDetection(t *testing.T) {
+	tests := []struct {
+		name    string
+		media   *mtproto.MessageMedia
+		isStick bool
+	}{
+		{
+			name: "webp sticker",
+			media: mtproto.MakeTLMessageMediaDocument(&mtproto.MessageMedia{
+				Document: mtproto.MakeTLDocument(&mtproto.Document{
+					Id: 3001, MimeType: "image/webp",
+					Attributes: []*mtproto.DocumentAttribute{
+						mtproto.MakeTLDocumentAttributeSticker(&mtproto.DocumentAttribute{Alt: "😎"}).To_DocumentAttribute(),
+					},
+				}).To_Document(),
+			}).To_MessageMedia(),
+			isStick: true,
+		},
+		{
+			name: "video sticker",
+			media: mtproto.MakeTLMessageMediaDocument(&mtproto.MessageMedia{
+				Document: mtproto.MakeTLDocument(&mtproto.Document{
+					Id: 3002, MimeType: "video/webm",
+					Attributes: []*mtproto.DocumentAttribute{
+						mtproto.MakeTLDocumentAttributeVideo(&mtproto.DocumentAttribute{W: 512, H: 512}).To_DocumentAttribute(),
+						mtproto.MakeTLDocumentAttributeSticker(&mtproto.DocumentAttribute{Alt: "🔥"}).To_DocumentAttribute(),
+					},
+				}).To_Document(),
+			}).To_MessageMedia(),
+			isStick: true,
+		},
+		{
+			name:    "photo media - not sticker",
+			media:   mtproto.MakeTLMessageMediaPhoto(&mtproto.MessageMedia{}).To_MessageMedia(),
+			isStick: false,
+		},
+		{
+			name: "pdf document - not sticker",
+			media: mtproto.MakeTLMessageMediaDocument(&mtproto.MessageMedia{
+				Document: mtproto.MakeTLDocument(&mtproto.Document{
+					Id: 3003, MimeType: "application/pdf",
+					Attributes: []*mtproto.DocumentAttribute{
+						mtproto.MakeTLDocumentAttributeFilename(&mtproto.DocumentAttribute{FileName: "report.pdf"}).To_DocumentAttribute(),
+					},
+				}).To_Document(),
+			}).To_MessageMedia(),
+			isStick: false,
+		},
+		{
+			name:    "nil media",
+			media:   nil,
+			isStick: false,
+		},
+		{
+			name: "document media with nil document",
+			media: mtproto.MakeTLMessageMediaDocument(&mtproto.MessageMedia{
+				Document: nil,
+			}).To_MessageMedia(),
+			isStick: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := detectStickerInMedia(tt.media)
+			if got != tt.isStick {
+				t.Errorf("detectStickerInMedia() = %v, want %v", got, tt.isStick)
+			}
+		})
+	}
+	t.Log("autoSaveStickerDetection: PASS")
+}
+
+// TestAutoSaveEmojiExtraction verifies emoji extraction from sticker Documents.
+func TestAutoSaveEmojiExtraction(t *testing.T) {
+	tests := []struct {
+		name      string
+		doc       *mtproto.Document
+		wantEmoji string
+	}{
+		{
+			name: "normal sticker",
+			doc: mtproto.MakeTLDocument(&mtproto.Document{
+				Id: 4001, MimeType: "image/webp",
+				Attributes: []*mtproto.DocumentAttribute{
+					mtproto.MakeTLDocumentAttributeSticker(&mtproto.DocumentAttribute{Alt: "😂"}).To_DocumentAttribute(),
+				},
+			}).To_Document(),
+			wantEmoji: "😂",
+		},
+		{
+			name: "multi-attribute sticker",
+			doc: mtproto.MakeTLDocument(&mtproto.Document{
+				Id: 4002, MimeType: "video/webm",
+				Attributes: []*mtproto.DocumentAttribute{
+					mtproto.MakeTLDocumentAttributeVideo(&mtproto.DocumentAttribute{W: 512, H: 512}).To_DocumentAttribute(),
+					mtproto.MakeTLDocumentAttributeSticker(&mtproto.DocumentAttribute{Alt: "👍"}).To_DocumentAttribute(),
+				},
+			}).To_Document(),
+			wantEmoji: "👍",
+		},
+		{
+			name: "non-sticker document",
+			doc: mtproto.MakeTLDocument(&mtproto.Document{
+				Id: 4003, MimeType: "image/jpeg",
+				Attributes: []*mtproto.DocumentAttribute{
+					mtproto.MakeTLDocumentAttributeImageSize(&mtproto.DocumentAttribute{W: 800, H: 600}).To_DocumentAttribute(),
+				},
+			}).To_Document(),
+			wantEmoji: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := extractStickerEmoji(tt.doc)
+			if got != tt.wantEmoji {
+				t.Errorf("extractStickerEmoji() = %q, want %q", got, tt.wantEmoji)
+			}
+		})
+	}
+	t.Log("autoSaveEmojiExtraction: PASS")
+}
+
+// TestAutoSaveSerializeRoundtrip verifies document serialization works for auto-save use case.
+func TestAutoSaveSerializeRoundtrip(t *testing.T) {
+	doc := mtproto.MakeTLDocument(&mtproto.Document{
+		Id:          5001,
+		AccessHash:  99999,
+		MimeType:    "image/webp",
+		Size2_INT32: 5000,
+		Attributes: []*mtproto.DocumentAttribute{
+			mtproto.MakeTLDocumentAttributeSticker(&mtproto.DocumentAttribute{Alt: "🎉"}).To_DocumentAttribute(),
+			mtproto.MakeTLDocumentAttributeImageSize(&mtproto.DocumentAttribute{W: 512, H: 512}).To_DocumentAttribute(),
+		},
+	}).To_Document()
+
+	// Serialize
+	docData, err := dao.SerializeStickerDoc(doc)
+	if err != nil {
+		t.Fatalf("SerializeStickerDoc error: %v", err)
+	}
+	if docData == "" {
+		t.Fatal("serialized data is empty")
+	}
+
+	// Deserialize
+	doc2, err := dao.DeserializeStickerDoc(docData)
+	if err != nil {
+		t.Fatalf("DeserializeStickerDoc error: %v", err)
+	}
+	if doc2.GetId() != 5001 {
+		t.Errorf("roundtrip Id = %d, want 5001", doc2.GetId())
+	}
+	if doc2.GetAccessHash() != 99999 {
+		t.Errorf("roundtrip AccessHash = %d, want 99999", doc2.GetAccessHash())
+	}
+	// Verify emoji survives roundtrip
+	emoji := extractStickerEmoji(doc2)
+	if emoji != "🎉" {
+		t.Errorf("roundtrip emoji = %q, want 🎉", emoji)
+	}
+
+	t.Logf("autoSaveSerializeRoundtrip: PASS (%d chars base64)", len(docData))
+}
+
+// TestAutoSaveNoDuplicateDetection verifies that re-sending the same sticker should still be detected.
+func TestAutoSaveNoDuplicateDetection(t *testing.T) {
+	doc := mtproto.MakeTLDocument(&mtproto.Document{
+		Id: 6001, MimeType: "image/webp",
+		Attributes: []*mtproto.DocumentAttribute{
+			mtproto.MakeTLDocumentAttributeSticker(&mtproto.DocumentAttribute{Alt: "🐱"}).To_DocumentAttribute(),
+		},
+	}).To_Document()
+
+	media := mtproto.MakeTLMessageMediaDocument(&mtproto.MessageMedia{
+		Document: doc,
+	}).To_MessageMedia()
+
+	// Detect 100 times (simulating sending same sticker repeatedly)
+	for i := 0; i < 100; i++ {
+		if !detectStickerInMedia(media) {
+			t.Fatalf("iteration %d: failed to detect sticker", i)
+		}
+	}
+	t.Log("autoSaveNoDuplicateDetection: PASS (detection is idempotent)")
+}
+
+// detectStickerInMedia mirrors the logic of maybeRecordRecentSticker in messages module.
+func detectStickerInMedia(media *mtproto.MessageMedia) bool {
+	if media == nil || media.GetPredicateName() != mtproto.Predicate_messageMediaDocument {
+		return false
+	}
+	doc := media.GetDocument()
+	if doc == nil {
+		return false
+	}
+	for _, attr := range doc.GetAttributes() {
+		if attr.GetPredicateName() == mtproto.Predicate_documentAttributeSticker {
+			return true
+		}
+	}
+	return false
+}
