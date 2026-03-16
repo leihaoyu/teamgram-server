@@ -14,9 +14,9 @@ import (
 
 const (
 	FetchTimeout  = 5 * time.Second
-	MaxBodyBytes  = 512 * 1024        // 512KB max HTML to parse
+	MaxBodyBytes  = 512 * 1024 // 512KB max HTML to parse
 	ImageTimeout  = 10 * time.Second
-	MaxImageBytes = 5 * 1024 * 1024   // 5MB max image download
+	MaxImageBytes = 5 * 1024 * 1024 // 5MB max image download
 )
 
 var imageExts = map[string]bool{
@@ -46,6 +46,7 @@ type OGMeta struct {
 	SiteName    string
 	Type        string
 	Image       string
+	Favicon     string // <link rel="icon"> or <link rel="apple-touch-icon"> URL
 	ImageData   []byte // populated only for direct image URLs
 	EmbedURL    string // og:video or og:video:url
 	EmbedType   string // og:video:type (e.g. "text/html", "video/mp4")
@@ -85,16 +86,27 @@ func Fetch(rawURL string) (*OGMeta, error) {
 		return nil, err
 	}
 	req.Header.Set("User-Agent", "TelegramBot (like TwitterBot)")
-	req.Header.Set("Accept", "text/html")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,image/*,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7")
 
-	resp, err := HttpClient.Do(req)
+	// Use a longer timeout for requests that may return images
+	client := &http.Client{
+		Timeout:       ImageTimeout,
+		Transport:     HttpClient.Transport,
+		CheckRedirect: HttpClient.CheckRedirect,
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		// Some sites (e.g. login pages) return 403 but still have useful HTML with meta/favicon
+		ct := resp.Header.Get("Content-Type")
+		if resp.StatusCode == http.StatusForbidden && (strings.Contains(ct, "text/html") || strings.Contains(ct, "application/xhtml")) {
+			return ParseOGMeta(io.LimitReader(resp.Body, MaxBodyBytes))
+		}
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 
@@ -169,6 +181,21 @@ func ParseOGMeta(r io.Reader) (*OGMeta, error) {
 					og.Author = content
 				case name == "description" && content != "" && og.Description == "":
 					og.Description = content
+				}
+			}
+
+			// Extract favicon: <link rel="icon" href="..."> or <link rel="apple-touch-icon" href="...">
+			// Prefer apple-touch-icon (higher quality), fall back to icon
+			if tagName == "link" && hasAttr {
+				attrs := readAttrs(tokenizer)
+				rel := strings.ToLower(attrs["rel"])
+				href := attrs["href"]
+				if href != "" {
+					if strings.Contains(rel, "apple-touch-icon") {
+						og.Favicon = href // prefer apple-touch-icon
+					} else if strings.Contains(rel, "icon") && og.Favicon == "" {
+						og.Favicon = href
+					}
 				}
 			}
 

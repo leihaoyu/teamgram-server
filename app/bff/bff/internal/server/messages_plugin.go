@@ -17,8 +17,8 @@ import (
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/proto/mtproto"
-	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	"github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
+	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	username_client "github.com/teamgram/teamgram-server/app/service/biz/username/client"
@@ -247,14 +247,14 @@ func (p *messagesPluginImpl) buildStickerSetPage(ctx context.Context, pageId int
 
 func (p *messagesPluginImpl) buildInvitePage(ctx context.Context, pageId int64, rawURL, displayUrl string) (*mtproto.WebPage, error) {
 	wp := mtproto.MakeTLWebPage(&mtproto.WebPage{
-		Id:          pageId,
-		Url_STRING:  rawURL,
-		DisplayUrl:  displayUrl,
-		Hash:        int32(time.Now().Unix()),
-		Type:        mtproto.MakeFlagsString("telegram_chat_request"),
-		SiteName:    mtproto.MakeFlagsString("Telegram"),
-		Title:       mtproto.MakeFlagsString("Invite Link"),
-		Date:        int32(time.Now().Unix()),
+		Id:         pageId,
+		Url_STRING: rawURL,
+		DisplayUrl: displayUrl,
+		Hash:       int32(time.Now().Unix()),
+		Type:       mtproto.MakeFlagsString("telegram_chat_request"),
+		SiteName:   mtproto.MakeFlagsString("Telegram"),
+		Title:      mtproto.MakeFlagsString("Invite Link"),
+		Date:       int32(time.Now().Unix()),
 	}).To_WebPage()
 	_ = ctx
 	return wp, nil
@@ -262,14 +262,14 @@ func (p *messagesPluginImpl) buildInvitePage(ctx context.Context, pageId int64, 
 
 func (p *messagesPluginImpl) buildMessagePage(pageId int64, rawURL, displayUrl string) *mtproto.WebPage {
 	return mtproto.MakeTLWebPage(&mtproto.WebPage{
-		Id:          pageId,
-		Url_STRING:  rawURL,
-		DisplayUrl:  displayUrl,
-		Hash:        int32(time.Now().Unix()),
-		Type:        mtproto.MakeFlagsString("telegram_message"),
-		SiteName:    mtproto.MakeFlagsString("Telegram"),
-		Title:       mtproto.MakeFlagsString("Message"),
-		Date:        int32(time.Now().Unix()),
+		Id:         pageId,
+		Url_STRING: rawURL,
+		DisplayUrl: displayUrl,
+		Hash:       int32(time.Now().Unix()),
+		Type:       mtproto.MakeFlagsString("telegram_message"),
+		SiteName:   mtproto.MakeFlagsString("Telegram"),
+		Title:      mtproto.MakeFlagsString("Message"),
+		Date:       int32(time.Now().Unix()),
 	}).To_WebPage()
 }
 
@@ -314,14 +314,14 @@ func (p *messagesPluginImpl) buildUserPage(ctx context.Context, pageId int64, ra
 	}
 
 	wp := mtproto.MakeTLWebPage(&mtproto.WebPage{
-		Id:          pageId,
-		Url_STRING:  rawURL,
-		DisplayUrl:  displayUrl,
-		Hash:        int32(time.Now().Unix()),
-		Type:        mtproto.MakeFlagsString("telegram_user"),
-		SiteName:    mtproto.MakeFlagsString("Telegram"),
-		Title:       mtproto.MakeFlagsString(displayName),
-		Date:        int32(time.Now().Unix()),
+		Id:         pageId,
+		Url_STRING: rawURL,
+		DisplayUrl: displayUrl,
+		Hash:       int32(time.Now().Unix()),
+		Type:       mtproto.MakeFlagsString("telegram_user"),
+		SiteName:   mtproto.MakeFlagsString("Telegram"),
+		Title:      mtproto.MakeFlagsString(displayName),
+		Date:       int32(time.Now().Unix()),
 	}).To_WebPage()
 
 	if desc != "" {
@@ -441,15 +441,15 @@ func (p *messagesPluginImpl) GetWebpagePreview(ctx context.Context, rawURL strin
 			return nil, nil
 		}
 		wp := mtproto.MakeTLWebPage(&mtproto.WebPage{
-			Id:          pageId,
-			Url_STRING:  rawURL,
-			DisplayUrl:  displayUrl,
-			Hash:        int32(time.Now().Unix()),
-			Type:        mtproto.MakeFlagsString("photo"),
-			SiteName:    mtproto.MakeFlagsString(parsed.Host),
-			Title:       mtproto.MakeFlagsString(path.Base(parsed.Path)),
-			Photo:       photo,
-			Date:        int32(time.Now().Unix()),
+			Id:         pageId,
+			Url_STRING: rawURL,
+			DisplayUrl: displayUrl,
+			Hash:       int32(time.Now().Unix()),
+			Type:       mtproto.MakeFlagsString("photo"),
+			SiteName:   mtproto.MakeFlagsString(parsed.Host),
+			Title:      mtproto.MakeFlagsString(path.Base(parsed.Path)),
+			Photo:      photo,
+			Date:       int32(time.Now().Unix()),
 		}).To_WebPage()
 		return wp, nil
 	}
@@ -500,17 +500,20 @@ func (p *messagesPluginImpl) GetWebpagePreview(ctx context.Context, rawURL strin
 	}
 
 	// If og:image is present, download and attach as Photo (graceful degradation on failure)
-	if og.Image != "" {
-		imageURL := webpage.ResolveImageURL(rawURL, og.Image)
+	imageSource := og.Image
+	if imageSource == "" && og.Favicon != "" {
+		imageSource = og.Favicon // fallback to favicon for small icon display
+	}
+	if imageSource != "" {
+		imageURL := webpage.ResolveImageURL(rawURL, imageSource)
 		// SSRF check on resolved image URL
 		_, imgParsed, imgErr := webpage.NormalizeURL(imageURL)
 		if imgErr == nil && !webpage.IsPrivateHost(imgParsed.Hostname()) {
 			photo := p.downloadAndUploadPhoto(ctx, imageURL)
 			if photo != nil {
 				wp.Photo = photo
-				// article 类型默认小图(54×54 inline)，只有媒体类 type 才设大图
-				switch pageType {
-				case "photo", "video", "embed", "gif", "document", "telegram_album":
+				// favicon as sole source → keep small (article default); og:image → large
+				if og.Image != "" {
 					wp.HasLargeMedia = true
 				}
 			}
