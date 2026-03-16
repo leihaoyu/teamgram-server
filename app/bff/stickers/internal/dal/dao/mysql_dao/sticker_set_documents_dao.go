@@ -3,6 +3,8 @@ package mysql_dao
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/stickers/internal/dal/dataobject"
@@ -99,6 +101,52 @@ func (dao *StickerSetDocumentsDAO) UpdateDocumentAfterDFSUpload(ctx context.Cont
 		logx.WithContext(ctx).Errorf("rowsAffected in UpdateDocumentAfterDFSUpload(_), error: %v", err)
 	}
 
+	return
+}
+
+// SelectBySetIdsAndEmoji returns sticker documents matching a specific emoji across multiple set_ids.
+func (dao *StickerSetDocumentsDAO) SelectBySetIdsAndEmoji(ctx context.Context, setIds []int64, emoji string) (rList []dataobject.StickerSetDocumentsDO, err error) {
+	if len(setIds) == 0 {
+		return nil, nil
+	}
+	placeholders := strings.Repeat("?,", len(setIds))
+	placeholders = placeholders[:len(placeholders)-1]
+	query := fmt.Sprintf(
+		"select id, set_id, document_id, sticker_index, emoji, bot_file_id, bot_file_unique_id, bot_thumb_file_id, document_data, file_downloaded from sticker_set_documents where set_id in (%s) and emoji = ? order by set_id, sticker_index asc",
+		placeholders,
+	)
+	args := make([]interface{}, 0, len(setIds)+1)
+	for _, id := range setIds {
+		args = append(args, id)
+	}
+	args = append(args, emoji)
+
+	var values []dataobject.StickerSetDocumentsDO
+	err = dao.db.QueryRowsPartial(ctx, &values, query, args...)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("queryx in SelectBySetIdsAndEmoji, error: %v", err)
+		return
+	}
+	rList = values
+	return
+}
+
+// SelectFirstBySetId returns the first (cover) document from a sticker set.
+func (dao *StickerSetDocumentsDAO) SelectFirstBySetId(ctx context.Context, setId int64) (rValue *dataobject.StickerSetDocumentsDO, err error) {
+	var (
+		query = "select id, set_id, document_id, sticker_index, emoji, bot_file_id, bot_file_unique_id, bot_thumb_file_id, document_data, file_downloaded from sticker_set_documents where set_id = ? order by sticker_index asc limit 1"
+		do    = &dataobject.StickerSetDocumentsDO{}
+	)
+	err = dao.db.QueryRowPartial(ctx, do, query, setId)
+	if err != nil {
+		if err != sqlx.ErrNotFound {
+			logx.WithContext(ctx).Errorf("queryx in SelectFirstBySetId(%d), error: %v", setId, err)
+			return
+		}
+		err = nil
+	} else {
+		rValue = do
+	}
 	return
 }
 

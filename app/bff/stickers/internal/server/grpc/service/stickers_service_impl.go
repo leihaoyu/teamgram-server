@@ -26,10 +26,9 @@ func (s *Service) MessagesGetStickerSet(ctx context.Context, request *mtproto.TL
 // --- All other RPCStickersServer methods return "not implemented" ---
 
 func (s *Service) MessagesGetStickers(ctx context.Context, request *mtproto.TLMessagesGetStickers) (*mtproto.Messages_Stickers, error) {
-	return mtproto.MakeTLMessagesStickers(&mtproto.Messages_Stickers{
-		Hash:     0,
-		Stickers: []*mtproto.Document{},
-	}).To_Messages_Stickers(), nil
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getStickers - metadata: %s, request: %s", c.MD, request)
+	return c.MessagesGetStickers(request)
 }
 
 func (s *Service) MessagesGetAllStickers(ctx context.Context, request *mtproto.TLMessagesGetAllStickers) (*mtproto.Messages_AllStickers, error) {
@@ -57,12 +56,9 @@ func (s *Service) MessagesReorderStickerSets(ctx context.Context, request *mtpro
 }
 
 func (s *Service) MessagesGetFeaturedStickers(ctx context.Context, request *mtproto.TLMessagesGetFeaturedStickers) (*mtproto.Messages_FeaturedStickers, error) {
-	return mtproto.MakeTLMessagesFeaturedStickers(&mtproto.Messages_FeaturedStickers{
-		Count:  0,
-		Hash:   0,
-		Sets:   []*mtproto.StickerSetCovered{},
-		Unread: []int64{},
-	}).To_Messages_FeaturedStickers(), nil
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getFeaturedStickers - metadata: %s, request: %s", c.MD, request)
+	return c.MessagesGetFeaturedStickers(request)
 }
 
 func (s *Service) MessagesReadFeaturedStickers(ctx context.Context, request *mtproto.TLMessagesReadFeaturedStickers) (*mtproto.Bool, error) {
@@ -120,10 +116,9 @@ func (s *Service) MessagesFaveSticker(ctx context.Context, request *mtproto.TLMe
 }
 
 func (s *Service) MessagesSearchStickerSets(ctx context.Context, request *mtproto.TLMessagesSearchStickerSets) (*mtproto.Messages_FoundStickerSets, error) {
-	return mtproto.MakeTLMessagesFoundStickerSets(&mtproto.Messages_FoundStickerSets{
-		Hash: 0,
-		Sets: []*mtproto.StickerSetCovered{},
-	}).To_Messages_FoundStickerSets(), nil
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.searchStickerSets - metadata: %s, request: %s", c.MD, request)
+	return c.MessagesSearchStickerSets(request)
 }
 
 func (s *Service) MessagesToggleStickerSets(ctx context.Context, request *mtproto.TLMessagesToggleStickerSets) (*mtproto.Bool, error) {

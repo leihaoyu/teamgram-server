@@ -8,9 +8,10 @@ import (
 type Config struct {
 	zrpc.RpcServerConf
 
-	TelegramBotToken string
-	Mysql            sqlx.Config
-	IdgenClient      zrpc.RpcClientConf
-	MediaClient      zrpc.RpcClientConf
-	DfsClient        zrpc.RpcClientConf
+	TelegramBotToken    string
+	FeaturedStickerSets []string `json:",optional"`
+	Mysql               sqlx.Config
+	IdgenClient         zrpc.RpcClientConf
+	MediaClient         zrpc.RpcClientConf
+	DfsClient           zrpc.RpcClientConf
 }

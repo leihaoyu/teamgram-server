@@ -3,6 +3,8 @@ package mysql_dao
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/stickers/internal/dal/dataobject"
@@ -87,5 +89,46 @@ func (dao *StickerSetsDAO) SelectBySetId(ctx context.Context, setId int64) (rVal
 		rValue = do
 	}
 
+	return
+}
+
+// SearchByQuery searches sticker sets by title or short_name using LIKE.
+func (dao *StickerSetsDAO) SearchByQuery(ctx context.Context, q string, limit int32) (rList []dataobject.StickerSetsDO, err error) {
+	var (
+		query   = "select id, set_id, access_hash, short_name, title, sticker_type, is_animated, is_video, is_masks, is_emojis, is_official, sticker_count, hash, thumb_doc_id, data_json, fetched_at from sticker_sets where (title like ? or short_name like ?) order by sticker_count desc limit ?"
+		pattern = "%" + q + "%"
+		values  []dataobject.StickerSetsDO
+	)
+	err = dao.db.QueryRowsPartial(ctx, &values, query, pattern, pattern, limit)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("queryx in SearchByQuery(%s), error: %v", q, err)
+		return
+	}
+	rList = values
+	return
+}
+
+// SelectBySetIds batch-loads sticker set metadata by multiple set_ids.
+func (dao *StickerSetsDAO) SelectBySetIds(ctx context.Context, setIds []int64) (rList []dataobject.StickerSetsDO, err error) {
+	if len(setIds) == 0 {
+		return nil, nil
+	}
+	placeholders := strings.Repeat("?,", len(setIds))
+	placeholders = placeholders[:len(placeholders)-1]
+	query := fmt.Sprintf(
+		"select id, set_id, access_hash, short_name, title, sticker_type, is_animated, is_video, is_masks, is_emojis, is_official, sticker_count, hash, thumb_doc_id, data_json, fetched_at from sticker_sets where set_id in (%s)",
+		placeholders,
+	)
+	args := make([]interface{}, 0, len(setIds))
+	for _, id := range setIds {
+		args = append(args, id)
+	}
+	var values []dataobject.StickerSetsDO
+	err = dao.db.QueryRowsPartial(ctx, &values, query, args...)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("queryx in SelectBySetIds, error: %v", err)
+		return
+	}
+	rList = values
 	return
 }

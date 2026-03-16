@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS sticker_set_documents (
   created_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_set_id (set_id),
+  KEY idx_set_emoji (set_id, emoji),
   UNIQUE KEY idx_document_id (document_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
