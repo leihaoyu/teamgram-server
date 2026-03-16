@@ -1,6 +1,8 @@
 package dao
 
 import (
+	"golang.org/x/sync/singleflight"
+
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/stickers/internal/config"
@@ -14,7 +16,8 @@ type Dao struct {
 	idgen_client.IDGenClient2
 	media_client.MediaClient
 	dfs_client.DfsClient
-	BotAPI *BotAPIClient
+	BotAPI     *BotAPIClient
+	FetchGroup singleflight.Group // deduplicates concurrent downloads of the same sticker set
 }
 
 func New(c config.Config) *Dao {

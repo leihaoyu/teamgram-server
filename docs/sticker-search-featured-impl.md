@@ -112,9 +112,10 @@ ALTER TABLE sticker_set_documents ADD KEY idx_set_emoji (set_id, emoji);
 
 2. 冷启动补充（安装数据不足时）
    → 读取配置 FeaturedStickerSets（贴纸集短名列表）
-   → 对每个短名：
+   → 正常情况下已由启动时的后台 warm-up goroutine 预先缓存（见 `docs/sticker-startup-optimization.md`）
+   → 若 warm-up 尚未完成，对每个短名：
      a. 查本地缓存 SelectByShortName
-     b. 未缓存 → fetchAndCacheStickerSet 从 Bot API 拉取并下载到 DFS
+     b. 未缓存 → fetchAndCacheStickerSet 从 Bot API 拉取并下载到 DFS（singleflight 保证并发安全）
    → 补充到列表直到 20 个
 
 3. 构建 StickerSetCovered
@@ -139,7 +140,8 @@ FeaturedStickerSets:
 - 首次访问会自动通过 Bot API 拉取并缓存
 
 ### Bot API 调用时机
-- **仅在冷启动 + 配置集未缓存时**才调用 Bot API
+- **正常情况下不调用 Bot API**：服务启动时后台 warm-up goroutine 已完成 featured sets 的预缓存（见 `docs/sticker-startup-optimization.md`）
+- 仅当 warm-up 尚未完成且集未缓存时才触发按需拉取
 - 后续请求完全走本地 MySQL
 
 ---
@@ -264,3 +266,5 @@ Bot API file_id ──→ 下载文件 ──→ DFS 上传 ──→ 内部 doc
 | 搜索改进 | 支持按 emoji 文字搜索（如搜 "dog" 匹配 🐕 对应贴纸） |
 | ExcludeFeatured | searchStickerSets 的 `ExcludeFeatured` flag 目前未处理 |
 | 全文索引 | 贴纸集数量大时，LIKE 查询可替换为 FULLTEXT INDEX |
+
+> 已实现的优化：后台预热（启动时平滑下载 FeaturedStickerSets）、singleflight 并发去重、下载并发数调低，详见 `docs/sticker-startup-optimization.md`。

@@ -125,18 +125,38 @@ func (c *StickersCore) buildStickerSetFromCache(setDO *dataobject.StickerSetsDO,
 	}).To_Messages_StickerSet(), nil
 }
 
-// fetchAndCacheStickerSet fetches a sticker set from Telegram Bot API, downloads all files
-// to DFS synchronously, saves everything to DB, and returns the response.
+// FetchAndCacheStickerSet is the exported entry point for fetching and caching a sticker set.
+// It delegates to fetchAndCacheStickerSet which uses singleflight to deduplicate concurrent
+// downloads of the same set.
+func (c *StickersCore) FetchAndCacheStickerSet(shortName string) (*mtproto.Messages_StickerSet, error) {
+	return c.fetchAndCacheStickerSet(shortName)
+}
+
+// fetchAndCacheStickerSet deduplicates concurrent downloads of the same sticker set using
+// singleflight: if multiple goroutines request the same shortName simultaneously, only one
+// download is performed and the result is shared.
 func (c *StickersCore) fetchAndCacheStickerSet(shortName string) (*mtproto.Messages_StickerSet, error) {
+	v, err, _ := c.svcCtx.Dao.FetchGroup.Do(shortName, func() (interface{}, error) {
+		return c.doFetchAndCacheStickerSet(shortName)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return v.(*mtproto.Messages_StickerSet), nil
+}
+
+// doFetchAndCacheStickerSet fetches a sticker set from Telegram Bot API, downloads all files
+// to DFS synchronously, saves everything to DB, and returns the response.
+func (c *StickersCore) doFetchAndCacheStickerSet(shortName string) (*mtproto.Messages_StickerSet, error) {
 	startTotal := time.Now()
 
 	botResult, err := c.svcCtx.Dao.BotAPI.GetStickerSet(c.ctx, shortName)
 	if err != nil {
-		c.Logger.Errorf("fetchAndCacheStickerSet - BotAPI.GetStickerSet(%s) error: %v", shortName, err)
+		c.Logger.Errorf("doFetchAndCacheStickerSet - BotAPI.GetStickerSet(%s) error: %v", shortName, err)
 		return nil, mtproto.ErrStickerIdInvalid
 	}
 
-	c.Logger.Infof("fetchAndCacheStickerSet(%s) - got %d stickers from Bot API in %v",
+	c.Logger.Infof("doFetchAndCacheStickerSet(%s) - got %d stickers from Bot API in %v",
 		shortName, len(botResult.Stickers), time.Since(startTotal))
 
 	// Generate set IDs
@@ -166,7 +186,7 @@ func (c *StickersCore) fetchAndCacheStickerSet(shortName string) (*mtproto.Messa
 	// Download all files and upload to DFS synchronously
 	dfsDocs, err := c.svcCtx.Dao.DownloadAndUploadStickerFiles(c.ctx, inputs)
 	if err != nil {
-		c.Logger.Errorf("fetchAndCacheStickerSet - DownloadAndUploadStickerFiles(%s) error: %v", shortName, err)
+		c.Logger.Errorf("doFetchAndCacheStickerSet - DownloadAndUploadStickerFiles(%s) error: %v", shortName, err)
 		return nil, mtproto.ErrInternelServerError
 	}
 
@@ -177,7 +197,7 @@ func (c *StickersCore) fetchAndCacheStickerSet(shortName string) (*mtproto.Messa
 
 		docData, err := dao.SerializeStickerDoc(dfsDoc)
 		if err != nil {
-			c.Logger.Errorf("fetchAndCacheStickerSet - serialize dfsDoc error: %v", err)
+			c.Logger.Errorf("doFetchAndCacheStickerSet - serialize dfsDoc error: %v", err)
 			docData = ""
 		}
 
@@ -234,16 +254,16 @@ func (c *StickersCore) fetchAndCacheStickerSet(shortName string) (*mtproto.Messa
 
 	_, rowsAffected, err := c.svcCtx.Dao.StickerSetsDAO.InsertIgnore(c.ctx, setDO)
 	if err != nil {
-		c.Logger.Errorf("fetchAndCacheStickerSet - InsertIgnore sticker_sets error: %v", err)
+		c.Logger.Errorf("doFetchAndCacheStickerSet - InsertIgnore sticker_sets error: %v", err)
 		return nil, mtproto.ErrInternelServerError
 	}
 
 	// Another concurrent request already inserted this set — fall back to cached data
 	if rowsAffected == 0 {
-		c.Logger.Infof("fetchAndCacheStickerSet - set %s already cached by another request, falling back", shortName)
+		c.Logger.Infof("doFetchAndCacheStickerSet - set %s already cached by another request, falling back", shortName)
 		cachedDO, err2 := c.svcCtx.Dao.StickerSetsDAO.SelectByShortName(c.ctx, shortName)
 		if err2 != nil || cachedDO == nil {
-			c.Logger.Errorf("fetchAndCacheStickerSet - fallback SelectByShortName(%s) error: %v", shortName, err2)
+			c.Logger.Errorf("doFetchAndCacheStickerSet - fallback SelectByShortName(%s) error: %v", shortName, err2)
 			return nil, mtproto.ErrInternelServerError
 		}
 		return c.buildStickerSetFromCache(cachedDO, 0)
@@ -252,14 +272,14 @@ func (c *StickersCore) fetchAndCacheStickerSet(shortName string) (*mtproto.Messa
 	for _, docDO := range stickerDocDOs {
 		_, _, err = c.svcCtx.Dao.StickerSetDocumentsDAO.InsertIgnore(c.ctx, docDO)
 		if err != nil {
-			c.Logger.Errorf("fetchAndCacheStickerSet - InsertIgnore sticker_set_documents error: %v", err)
+			c.Logger.Errorf("doFetchAndCacheStickerSet - InsertIgnore sticker_set_documents error: %v", err)
 		}
 	}
 
 	packs := buildStickerPacks2(stickerDocDOs)
 	stickerSetPB := makeStickerSetFromDO(setDO)
 
-	c.Logger.Infof("fetchAndCacheStickerSet(%s) - DONE: %d docs, total=%v",
+	c.Logger.Infof("doFetchAndCacheStickerSet(%s) - DONE: %d docs, total=%v",
 		shortName, len(dfsDocs), time.Since(startTotal))
 
 	return mtproto.MakeTLMessagesStickerSet(&mtproto.Messages_StickerSet{
