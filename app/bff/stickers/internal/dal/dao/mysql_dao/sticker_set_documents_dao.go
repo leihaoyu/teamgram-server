@@ -131,6 +131,21 @@ func (dao *StickerSetDocumentsDAO) SelectBySetIdsAndEmoji(ctx context.Context, s
 	return
 }
 
+// SelectByEmoji returns sticker documents matching a specific emoji across ALL cached sets.
+func (dao *StickerSetDocumentsDAO) SelectByEmoji(ctx context.Context, emoji string) (rList []dataobject.StickerSetDocumentsDO, err error) {
+	var (
+		query  = "select id, set_id, document_id, sticker_index, emoji, bot_file_id, bot_file_unique_id, bot_thumb_file_id, document_data, file_downloaded from sticker_set_documents where emoji COLLATE utf8mb4_bin = ? and file_downloaded = 1 order by set_id, sticker_index asc limit 50"
+		values []dataobject.StickerSetDocumentsDO
+	)
+	err = dao.db.QueryRowsPartial(ctx, &values, query, emoji)
+	if err != nil {
+		logx.WithContext(ctx).Errorf("queryx in SelectByEmoji(%s), error: %v", emoji, err)
+		return
+	}
+	rList = values
+	return
+}
+
 // SelectFirstBySetId returns the first (cover) document from a sticker set.
 func (dao *StickerSetDocumentsDAO) SelectFirstBySetId(ctx context.Context, setId int64) (rValue *dataobject.StickerSetDocumentsDO, err error) {
 	var (

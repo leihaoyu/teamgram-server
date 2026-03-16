@@ -415,6 +415,10 @@ func (c *BFFProxyClient) TryReturnFakeRpcResult(object mtproto.TLObject) (mtprot
 	// help test
 	case "TLHelpTest":
 		return mtproto.BoolTrue, nil
+
+	// help saveAppLog
+	case "TLHelpSaveAppLog":
+		return mtproto.BoolTrue, nil
 	}
 
 	logx.Errorf("%s - method not impl.", rt.Name())

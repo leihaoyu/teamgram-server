@@ -57,7 +57,7 @@
 
 | 方法 | 返回 |
 |------|------|
-| `messages.getStickers(emoticon: 👋⭐️)` | `stickers(hash: 0, stickers: [])` ✓ |
+| `messages.getStickers(emoticon: 👋⭐️)` | ✅ 已修复 — 返回 DB 中所有带 👋 emoji 的 sticker |
 | `messages.getRecentStickers(hash: 0)` | `recentStickers(hash: 0, packs: [], stickers: [], dates: [])` ✓ |
 | `messages.getSavedGifs(hash: 0)` | `savedGifs(hash: 0, gifs: [])` ✓ |
 | `messages.getFavedStickers(hash: 0)` | `favedStickers(hash: 0, packs: [], stickers: [])` ✓ |
@@ -138,6 +138,8 @@ thumbs: [
 | 4 | StickerSet.ThumbDocumentId 设为第一个 document ID | `messages.getStickerSet_handler.go` |
 | 5 | StickerSet.hash 非零 + getStickerSet NotModified 支持 | `messages.getStickerSet_handler.go` |
 | 6 | METHOD_NOT_IMPL 20+ 个 API 返回空列表替代报错 | `fake_rpc_result.go` |
+| 7 | `help.saveAppLog` 返回 boolTrue 替代 METHOD_NOT_IMPL | `fake_rpc_result.go` |
+| 8 | Greeting sticker: `messages.getStickers(👋⭐️)` 返回真实 sticker | `messages.getStickers_handler.go`, `sticker_set_documents_dao.go` |
 
 **缩略图实现流程**:
 ```
