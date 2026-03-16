@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"encoding/json"
 	"math/rand"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/stickers/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/bff/stickers/internal/dao"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // MessagesGetStickerSet handles the messages.getStickerSet TL method.
@@ -64,18 +66,44 @@ func (c *StickersCore) MessagesGetStickerSet(in *mtproto.TLMessagesGetStickerSet
 		return c.buildStickerSetFromCache(setDO, in.GetHash())
 	}
 
-	// 2. Not cached — fetch from Bot API and download all files synchronously
-	result, err := c.fetchAndCacheStickerSet(shortName)
-	if err != nil {
-		// For system built-in sets, return an empty set instead of an error
-		// so the client can silently handle it (instead of crashing on STICKER_ID_INVALID)
-		if isSystemBuiltInPredicate(stickerSet.GetPredicateName()) {
-			c.Logger.Infof("messages.getStickerSet - system set %s fetch failed, returning empty set: %v", shortName, err)
-			return c.makeEmptyStickerSet(shortName), nil
-		}
-		return nil, err
+	// 2. Not cached — for system built-in emoji sets (AnimatedEmojies, EmojiAnimations, etc.),
+	//    return empty set immediately, but trigger async background download so data
+	//    is ready for the next request. Uses singleflight to avoid duplicate downloads.
+	if isSystemBuiltInPredicate(stickerSet.GetPredicateName()) {
+		c.Logger.Infof("messages.getStickerSet - system set %s not cached, returning empty + async fetch", shortName)
+		svcCtx := c.svcCtx
+		go func() {
+			_, _ = svcCtx.Dao.StickerSetFetch.Do(shortName, func() error {
+				bgCtx := context.Background()
+				bgCore := New(bgCtx, svcCtx)
+				_, err := bgCore.fetchAndCacheStickerSet(shortName)
+				if err != nil {
+					logx.Errorf("async fetchAndCacheStickerSet(%s) error: %v", shortName, err)
+				} else {
+					logx.Infof("async fetchAndCacheStickerSet(%s) done", shortName)
+				}
+				return err
+			})
+		}()
+		return c.makeEmptyStickerSet(shortName), nil
 	}
-	return result, nil
+
+	// 3. User-facing sticker sets: fetch from Bot API with singleflight dedup.
+	_, sfErr := c.svcCtx.Dao.StickerSetFetch.Do(shortName, func() error {
+		_, err2 := c.fetchAndCacheStickerSet(shortName)
+		return err2
+	})
+	if sfErr != nil {
+		return nil, sfErr
+	}
+	// After singleflight completes, always read from DB cache so all callers
+	// get the same data regardless of who actually did the download.
+	cachedDO, err := c.svcCtx.Dao.StickerSetsDAO.SelectByShortName(c.ctx, shortName)
+	if err != nil || cachedDO == nil {
+		c.Logger.Errorf("messages.getStickerSet - post-fetch SelectByShortName(%s) error: %v", shortName, err)
+		return nil, mtproto.ErrInternelServerError
+	}
+	return c.buildStickerSetFromCache(cachedDO, in.GetHash())
 }
 
 // buildStickerSetFromCache reconstructs the Messages_StickerSet from cached DB data.
@@ -110,11 +138,14 @@ func (c *StickersCore) buildStickerSetFromCache(setDO *dataobject.StickerSetsDO,
 	stickerSet.Hash = hash
 
 	// Check if the current user has this set installed and set InstalledDate
-	installRow, err := c.svcCtx.Dao.UserInstalledStickerSetsDAO.SelectByUserAndSetId(c.ctx, c.MD.UserId, setDO.SetId)
-	if err != nil {
-		c.Logger.Errorf("buildStickerSetFromCache - SelectByUserAndSetId error: %v", err)
-	} else if installRow != nil {
-		stickerSet.InstalledDate = &types.Int32Value{Value: int32(installRow.InstalledDate)}
+	// (skip when running from background goroutine with no user context)
+	if c.MD != nil && c.MD.UserId != 0 {
+		installRow, err := c.svcCtx.Dao.UserInstalledStickerSetsDAO.SelectByUserAndSetId(c.ctx, c.MD.UserId, setDO.SetId)
+		if err != nil {
+			c.Logger.Errorf("buildStickerSetFromCache - SelectByUserAndSetId error: %v", err)
+		} else if installRow != nil {
+			stickerSet.InstalledDate = &types.Int32Value{Value: int32(installRow.InstalledDate)}
+		}
 	}
 
 	return mtproto.MakeTLMessagesStickerSet(&mtproto.Messages_StickerSet{
@@ -361,11 +392,11 @@ func buildStickerPacks2(docDOs []*dataobject.StickerSetDocumentsDO) []*mtproto.S
 
 // systemBuiltInPredicates maps system built-in sticker set predicates to their shortNames.
 var systemBuiltInPredicates = map[string]string{
-	mtproto.Predicate_inputStickerSetAnimatedEmoji:             "AnimatedEmojies",
-	mtproto.Predicate_inputStickerSetAnimatedEmojiAnimations:   "EmojiAnimations",
-	mtproto.Predicate_inputStickerSetEmojiGenericAnimations:    "EmojiGenericAnimations",
-	mtproto.Predicate_inputStickerSetEmojiDefaultStatuses:      "StatusPack",
-	mtproto.Predicate_inputStickerSetEmojiDefaultTopicIcons:    "Topics",
+	mtproto.Predicate_inputStickerSetAnimatedEmoji:           "AnimatedEmojies",
+	mtproto.Predicate_inputStickerSetAnimatedEmojiAnimations: "EmojiAnimations",
+	mtproto.Predicate_inputStickerSetEmojiGenericAnimations:  "EmojiGenericAnimations",
+	mtproto.Predicate_inputStickerSetEmojiDefaultStatuses:    "StatusPack",
+	mtproto.Predicate_inputStickerSetEmojiDefaultTopicIcons:  "Topics",
 }
 
 func isSystemBuiltInPredicate(predicate string) bool {

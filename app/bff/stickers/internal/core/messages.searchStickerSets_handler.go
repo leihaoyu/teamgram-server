@@ -22,10 +22,13 @@ func (c *StickersCore) MessagesSearchStickerSets(in *mtproto.TLMessagesSearchSti
 		return nil, mtproto.ErrInternelServerError
 	}
 
-	// 2. If no local results, try Bot API exact name match as fallback
+	// 2. If no local results, try Bot API exact name match as fallback (with singleflight dedup)
 	if len(searchResults) == 0 {
-		_, fetchErr := c.fetchAndCacheStickerSet(q)
-		if fetchErr == nil {
+		_, sfErr := c.svcCtx.Dao.StickerSetFetch.Do(q, func() error {
+			_, fetchErr := c.fetchAndCacheStickerSet(q)
+			return fetchErr
+		})
+		if sfErr == nil {
 			// Re-query after caching
 			searchResults, err = c.svcCtx.Dao.StickerSetsDAO.SearchByQuery(c.ctx, q, 20)
 			if err != nil {

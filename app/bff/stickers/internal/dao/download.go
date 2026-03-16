@@ -20,7 +20,7 @@ import (
 
 const (
 	filePartSize    = 512 * 1024 // 512KB per part
-	downloadWorkers = 10
+	downloadWorkers = 3          // per-request concurrency (also capped by globalDownloadSem)
 )
 
 // StickerDownloadInput holds the info needed to download one sticker file and upload it to DFS.
@@ -48,7 +48,7 @@ func (d *Dao) DownloadAndUploadStickerFiles(ctx context.Context, inputs []Sticke
 
 	results := make([]*mtproto.Document, len(inputs))
 	var (
-		mu      sync.Mutex
+		mu       sync.Mutex
 		firstErr error
 	)
 
@@ -60,7 +60,7 @@ func (d *Dao) DownloadAndUploadStickerFiles(ctx context.Context, inputs []Sticke
 		input := inputs[i]
 
 		wg.Add(1)
-		sem <- struct{}{}
+		sem <- struct{}{} // per-request concurrency limit
 		go func() {
 			defer wg.Done()
 			defer func() { <-sem }()
@@ -74,6 +74,10 @@ func (d *Dao) DownloadAndUploadStickerFiles(ctx context.Context, inputs []Sticke
 					logx.WithContext(ctx).Errorf("downloadAndUploadOne panic: %v", r)
 				}
 			}()
+
+			// Acquire global semaphore to cap total memory usage across all requests
+			globalDownloadSem <- struct{}{}
+			defer func() { <-globalDownloadSem }()
 
 			doc, err := d.downloadAndUploadOne(ctx, &input)
 			mu.Lock()

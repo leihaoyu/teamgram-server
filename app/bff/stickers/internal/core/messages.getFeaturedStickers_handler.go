@@ -1,9 +1,12 @@
 package core
 
 import (
+	"context"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/stickers/internal/dal/dataobject"
 	"github.com/teamgram/teamgram-server/app/bff/stickers/internal/dao"
+	"github.com/zeromicro/go-zero/core/logx"
 )
 
 // MessagesGetFeaturedStickers returns popular/featured sticker sets.
@@ -96,16 +99,24 @@ func (c *StickersCore) supplementWithConfiguredSets(existingIds []int64, maxLen 
 		}
 
 		if setDO == nil {
-			// Not cached yet — fetch from Bot API
-			_, err = c.fetchAndCacheStickerSet(name)
-			if err != nil {
-				c.Logger.Errorf("supplementWithConfiguredSets - fetchAndCacheStickerSet(%s) error: %v", name, err)
-				continue
-			}
-			setDO, err = c.svcCtx.Dao.StickerSetsDAO.SelectByShortName(c.ctx, name)
-			if err != nil || setDO == nil {
-				continue
-			}
+			// Not cached yet — skip it to avoid blocking this request.
+			// Trigger async background download so it's ready for the next request.
+			c.Logger.Infof("supplementWithConfiguredSets - set %s not cached, triggering async fetch", name)
+			svcCtx := c.svcCtx
+			setName := name
+			go func() {
+				_, _ = svcCtx.Dao.StickerSetFetch.Do(setName, func() error {
+					bgCore := New(context.Background(), svcCtx)
+					_, err := bgCore.fetchAndCacheStickerSet(setName)
+					if err != nil {
+						logx.Errorf("async fetchAndCacheStickerSet(%s) error: %v", setName, err)
+					} else {
+						logx.Infof("async fetchAndCacheStickerSet(%s) done", setName)
+					}
+					return err
+				})
+			}()
+			continue
 		}
 
 		if !existingSet[setDO.SetId] {
