@@ -109,15 +109,12 @@ func (c *StickersCore) buildStickerSetFromCache(setDO *dataobject.StickerSetsDO,
 	stickerSet := makeStickerSetFromDO(setDO)
 	stickerSet.Hash = hash
 
-	// Check if the current user has this set installed and set InstalledDate.
-	// Guard: c.MD may be nil when called from background warmup goroutine.
-	if c.MD != nil {
-		installRow, err := c.svcCtx.Dao.UserInstalledStickerSetsDAO.SelectByUserAndSetId(c.ctx, c.MD.UserId, setDO.SetId)
-		if err != nil {
-			c.Logger.Errorf("buildStickerSetFromCache - SelectByUserAndSetId error: %v", err)
-		} else if installRow != nil {
-			stickerSet.InstalledDate = &types.Int32Value{Value: int32(installRow.InstalledDate)}
-		}
+	// Check if the current user has this set installed and set InstalledDate
+	installRow, err := c.svcCtx.Dao.UserInstalledStickerSetsDAO.SelectByUserAndSetId(c.ctx, c.MD.UserId, setDO.SetId)
+	if err != nil {
+		c.Logger.Errorf("buildStickerSetFromCache - SelectByUserAndSetId error: %v", err)
+	} else if installRow != nil {
+		stickerSet.InstalledDate = &types.Int32Value{Value: int32(installRow.InstalledDate)}
 	}
 
 	return mtproto.MakeTLMessagesStickerSet(&mtproto.Messages_StickerSet{
