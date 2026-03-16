@@ -109,7 +109,7 @@ func (p *messagesPluginImpl) uploadPhotoData(ctx context.Context, data []byte, e
 	}
 
 	photo, err := p.mediaClient.MediaUploadPhotoFile(ctx, &mediapb.TLMediaUploadPhotoFile{
-		OwnerId: 0,
+		OwnerId: tempFileId,
 		File: mtproto.MakeTLInputFile(&mtproto.InputFile{
 			Id:    tempFileId,
 			Parts: totalParts,
