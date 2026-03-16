@@ -79,6 +79,14 @@ func (c *StickersCore) buildStickerSetFromCache(setDO *dataobject.StickerSetsDO)
 	packs := buildStickerPacks(docDOs)
 	stickerSet := makeStickerSetFromDO(setDO)
 
+	// Check if the current user has this set installed and set InstalledDate
+	installRow, err := c.svcCtx.Dao.UserInstalledStickerSetsDAO.SelectByUserAndSetId(c.ctx, c.MD.UserId, setDO.SetId)
+	if err != nil {
+		c.Logger.Errorf("buildStickerSetFromCache - SelectByUserAndSetId error: %v", err)
+	} else if installRow != nil {
+		stickerSet.InstalledDate = &types.Int32Value{Value: int32(installRow.InstalledDate)}
+	}
+
 	return mtproto.MakeTLMessagesStickerSet(&mtproto.Messages_StickerSet{
 		Set:       stickerSet,
 		Packs:     packs,

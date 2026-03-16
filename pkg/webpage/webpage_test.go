@@ -230,3 +230,59 @@ func TestNormalizeURL(t *testing.T) {
 		})
 	}
 }
+
+func TestIsImageURL(t *testing.T) {
+	tests := []struct {
+		url  string
+		want bool
+	}{
+		{"https://example.com/photo.jpg", true},
+		{"https://example.com/photo.jpeg", true},
+		{"https://example.com/photo.png", true},
+		{"https://example.com/photo.gif", true},
+		{"https://example.com/photo.webp", true},
+		{"https://example.com/photo.JPG", true},
+		{"https://example.com/photo.jpg?w=800&h=600", true},
+		{"https://example.com/photo.jpg#anchor", true},
+		{"https://example.com/page.html", false},
+		{"https://example.com/video.mp4", false},
+		{"https://example.com/path/to/page", false},
+		{"https://example.com/", false},
+		{"not-a-url", false},
+		{"", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.url, func(t *testing.T) {
+			got := IsImageURL(tt.url)
+			if got != tt.want {
+				t.Errorf("IsImageURL(%q) = %v, want %v", tt.url, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestResolveImageURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		pageURL  string
+		imageURL string
+		want     string
+	}{
+		{"absolute URL unchanged", "https://example.com/page", "https://cdn.example.com/img.jpg", "https://cdn.example.com/img.jpg"},
+		{"http absolute URL unchanged", "https://example.com/page", "http://cdn.example.com/img.jpg", "http://cdn.example.com/img.jpg"},
+		{"relative path", "https://example.com/articles/page", "/images/og.jpg", "https://example.com/images/og.jpg"},
+		{"relative no slash", "https://example.com/articles/page", "images/og.jpg", "https://example.com/articles/images/og.jpg"},
+		{"empty image URL", "https://example.com/page", "", ""},
+		{"protocol-relative", "https://example.com/page", "//cdn.example.com/img.jpg", "https://cdn.example.com/img.jpg"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ResolveImageURL(tt.pageURL, tt.imageURL)
+			if got != tt.want {
+				t.Errorf("ResolveImageURL(%q, %q) = %q, want %q", tt.pageURL, tt.imageURL, got, tt.want)
+			}
+		})
+	}
+}

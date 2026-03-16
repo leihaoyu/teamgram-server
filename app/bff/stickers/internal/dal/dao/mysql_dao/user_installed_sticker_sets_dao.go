@@ -107,6 +107,24 @@ func (dao *UserInstalledStickerSetsDAO) IncrementOrderNum(ctx context.Context, u
 	return
 }
 
+// SelectByUserAndSetId returns a single installed sticker set record for a user.
+func (dao *UserInstalledStickerSetsDAO) SelectByUserAndSetId(ctx context.Context, userId, setId int64) (r *dataobject.UserInstalledStickerSetsDO, err error) {
+	var (
+		query = "SELECT id, user_id, set_id, set_type, order_num, installed_date, archived, deleted FROM user_installed_sticker_sets WHERE user_id = ? AND set_id = ? AND deleted = 0 LIMIT 1"
+		value dataobject.UserInstalledStickerSetsDO
+	)
+	err = dao.db.QueryRowPartial(ctx, &value, query, userId, setId)
+	if err != nil {
+		if err == sqlx.ErrNotFound {
+			return nil, nil
+		}
+		logx.WithContext(ctx).Errorf("queryx in SelectByUserAndSetId(%d, %d), error: %v", userId, setId, err)
+		return
+	}
+	r = &value
+	return
+}
+
 // SelectPopularSetIds returns the most popular sticker set_ids ranked by install count.
 func (dao *UserInstalledStickerSetsDAO) SelectPopularSetIds(ctx context.Context, limit int32) (rList []int64, err error) {
 	type popularRow struct {

@@ -13,9 +13,15 @@ import (
 )
 
 const (
-	FetchTimeout = 5 * time.Second
-	MaxBodyBytes = 512 * 1024 // 512KB max HTML to parse
+	FetchTimeout  = 5 * time.Second
+	MaxBodyBytes  = 512 * 1024        // 512KB max HTML to parse
+	ImageTimeout  = 10 * time.Second
+	MaxImageBytes = 5 * 1024 * 1024   // 5MB max image download
 )
+
+var imageExts = map[string]bool{
+	".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true,
+}
 
 var HttpClient = &http.Client{
 	Timeout: FetchTimeout,
@@ -40,6 +46,7 @@ type OGMeta struct {
 	SiteName    string
 	Type        string
 	Image       string
+	ImageData   []byte // populated only for direct image URLs
 }
 
 // NormalizeURL ensures the URL has a scheme and is valid.
@@ -87,6 +94,16 @@ func Fetch(rawURL string) (*OGMeta, error) {
 	}
 
 	ct := resp.Header.Get("Content-Type")
+
+	// Direct image URL — download bytes and return as "photo" type
+	if strings.HasPrefix(ct, "image/") {
+		data, err := io.ReadAll(io.LimitReader(resp.Body, MaxImageBytes))
+		if err != nil {
+			return nil, fmt.Errorf("read image: %w", err)
+		}
+		return &OGMeta{Type: "photo", Image: rawURL, ImageData: data}, nil
+	}
+
 	if !strings.Contains(ct, "text/html") && !strings.Contains(ct, "application/xhtml") {
 		return nil, fmt.Errorf("not HTML: %s", ct)
 	}
@@ -179,4 +196,88 @@ func readAttrs(z *html.Tokenizer) map[string]string {
 		}
 	}
 	return attrs
+}
+
+// IsImageURL checks if the URL path ends with a common image extension.
+func IsImageURL(rawURL string) bool {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	p := strings.ToLower(parsed.Path)
+	for ext := range imageExts {
+		if strings.HasSuffix(p, ext) {
+			return true
+		}
+	}
+	return false
+}
+
+// ResolveImageURL resolves a potentially relative og:image URL against the page URL.
+func ResolveImageURL(pageURL, imageURL string) string {
+	if imageURL == "" {
+		return ""
+	}
+	if strings.HasPrefix(imageURL, "http://") || strings.HasPrefix(imageURL, "https://") {
+		return imageURL
+	}
+	base, err := url.Parse(pageURL)
+	if err != nil {
+		return imageURL
+	}
+	ref, err := url.Parse(imageURL)
+	if err != nil {
+		return imageURL
+	}
+	return base.ResolveReference(ref).String()
+}
+
+// DownloadImage downloads an image from URL, returning the bytes and content-type.
+// Limits: 5MB max size, 10s timeout. Returns error for non-image content.
+func DownloadImage(rawURL string) ([]byte, string, error) {
+	client := &http.Client{
+		Timeout: ImageTimeout,
+		Transport: &http.Transport{
+			DialContext:     (&net.Dialer{Timeout: 5 * time.Second}).DialContext,
+			MaxIdleConns:    10,
+			IdleConnTimeout: 30 * time.Second,
+		},
+		CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			if len(via) >= 5 {
+				return fmt.Errorf("too many redirects")
+			}
+			return nil
+		},
+	}
+
+	req, err := http.NewRequest("GET", rawURL, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	req.Header.Set("User-Agent", "TelegramBot (like TwitterBot)")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, "", fmt.Errorf("HTTP %d", resp.StatusCode)
+	}
+
+	ct := resp.Header.Get("Content-Type")
+	if !strings.HasPrefix(ct, "image/") {
+		return nil, "", fmt.Errorf("not an image: %s", ct)
+	}
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, MaxImageBytes+1))
+	if err != nil {
+		return nil, "", err
+	}
+	if len(data) > MaxImageBytes {
+		return nil, "", fmt.Errorf("image too large: >%d bytes", MaxImageBytes)
+	}
+
+	return data, ct, nil
 }
