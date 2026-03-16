@@ -508,6 +508,7 @@ func (p *messagesPluginImpl) GetWebpagePreview(ctx context.Context, rawURL strin
 		// Last resort: try default /favicon.ico
 		imageSource = parsed.Scheme + "://" + parsed.Host + "/favicon.ico"
 	}
+	log.Infof("GetWebpagePreview - imageSource=%q (og.Image=%q, og.Favicon=%q)", imageSource, og.Image, og.Favicon)
 	if imageSource != "" {
 		imageURL := webpage.ResolveImageURL(rawURL, imageSource)
 		// SSRF check on resolved image URL
@@ -520,7 +521,11 @@ func (p *messagesPluginImpl) GetWebpagePreview(ctx context.Context, rawURL strin
 				if og.Image != "" {
 					wp.HasLargeMedia = true
 				}
+			} else {
+				log.Infof("GetWebpagePreview - photo upload failed for %s", imageURL)
 			}
+		} else {
+			log.Infof("GetWebpagePreview - SSRF blocked or parse error for %s", imageSource)
 		}
 	}
 
