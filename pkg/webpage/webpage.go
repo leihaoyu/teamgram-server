@@ -85,7 +85,7 @@ func Fetch(rawURL string) (*OGMeta, error) {
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "TelegramBot (like TwitterBot)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; TelegramBot/1.0; +https://core.telegram.org/bots)")
 	req.Header.Set("Accept", "text/html,application/xhtml+xml,image/*,*/*;q=0.8")
 	req.Header.Set("Accept-Language", "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7")
 
@@ -298,7 +298,7 @@ func DownloadImage(rawURL string) ([]byte, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	req.Header.Set("User-Agent", "TelegramBot (like TwitterBot)")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (compatible; TelegramBot/1.0; +https://core.telegram.org/bots)")
 
 	resp, err := client.Do(req)
 	if err != nil {

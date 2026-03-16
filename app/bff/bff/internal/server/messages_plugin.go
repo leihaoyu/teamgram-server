@@ -504,6 +504,10 @@ func (p *messagesPluginImpl) GetWebpagePreview(ctx context.Context, rawURL strin
 	if imageSource == "" && og.Favicon != "" {
 		imageSource = og.Favicon // fallback to favicon for small icon display
 	}
+	if imageSource == "" {
+		// Last resort: try default /favicon.ico
+		imageSource = parsed.Scheme + "://" + parsed.Host + "/favicon.ico"
+	}
 	if imageSource != "" {
 		imageURL := webpage.ResolveImageURL(rawURL, imageSource)
 		// SSRF check on resolved image URL
