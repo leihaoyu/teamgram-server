@@ -35,7 +35,7 @@
 1. BFF 收到 inputStickerSetShortName("AP_DI2")
 2. 查 MySQL 缓存 → 没有
 3. 调用 Bot API getStickerSet → 获取贴纸列表和元数据
-4. 并发下载所有贴纸文件（10 worker）：
+4. 并发下载所有贴纸文件（3 worker，singleflight 保证同名集只下载一次）：
    a. Bot API getFile → 获取 file_path
    b. Bot API downloadFile → 下载原始文件字节
    c. DfsWriteFilePartData → 写入 SSDB 临时存储
