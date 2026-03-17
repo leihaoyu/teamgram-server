@@ -88,13 +88,14 @@
 - [ ] `messages.getWebPage` (两个版本) — 获取网页信息
 - **备注**: 需要 OG 标签解析服务
 
-### 13. RPCLangpack (5 methods)
-- [ ] `langpack.getLangPack` — 获取语言包
-- [ ] `langpack.getStrings` — 获取翻译字符串
-- [ ] `langpack.getDifference` — 增量更新
-- [ ] `langpack.getLanguages` — 语言列表
-- [ ] `langpack.getLanguage` — 单个语言信息
-- **备注**: 需要语言包数据存储，可先返回中文/英文默认包
+### 13. ~~RPCLangpack (5 methods)~~ ✅ 已完成
+- [x] `langpack.getLangPack` — 获取语言包
+- [x] `langpack.getStrings` — 获取翻译字符串
+- [x] `langpack.getDifference` — 增量更新
+- [x] `langpack.getLanguages` — 语言列表
+- [x] `langpack.getLanguage` — 单个语言信息
+- **实现**: `app/bff/langpack/` — 从 translations.telegram.org 抓取并缓存到本地文件，支持 33 种语言（含简体/繁体中文）
+- **文档**: `docs/langpack-feature.md`
 
 ### 14. RPCScheduledMessages (4 methods)
 - [ ] `messages.getScheduledHistory` — 获取定时消息列表
@@ -230,7 +231,7 @@
 | 批次 | 路由数 | 方法数 | 预估工作量 |
 |------|--------|--------|-----------|
 | 第一批 | 8 | 22 | ~1 周 |
-| 第二批 | 6 | 28 | ~3 周 |
+| 第二批 | 6 | 28 | ~3 周 | RPCLangpack ✅ |
 | 第三批 | 5 | 55 | ~2 月 |
 | 第四批 | 3 | 46 | ~2-3 月 |
 | 第五批 | 5 | 79 | 按需 |

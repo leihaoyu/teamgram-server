@@ -33,6 +33,7 @@ import (
 	dialogs_helper "github.com/teamgram/teamgram-server/app/bff/dialogs"
 	drafts_helper "github.com/teamgram/teamgram-server/app/bff/drafts"
 	files_helper "github.com/teamgram/teamgram-server/app/bff/files"
+	langpack_helper "github.com/teamgram/teamgram-server/app/bff/langpack"
 	messages_helper "github.com/teamgram/teamgram-server/app/bff/messages"
 	messages_plugin "github.com/teamgram/teamgram-server/app/bff/messages/plugin"
 	miscellaneous_helper "github.com/teamgram/teamgram-server/app/bff/miscellaneous"
@@ -326,6 +327,13 @@ func (s *Server) Initialize() error {
 					DfsClient:           c.DfsClient,
 				}))
 		}
+
+		// langpack_helper
+		mtproto.RegisterRPCLangpackServer(
+			grpcServer,
+			langpack_helper.New(langpack_helper.Config{
+				RpcServerConf: c.RpcServerConf,
+			}))
 	})
 
 	// logx.Must(err)
