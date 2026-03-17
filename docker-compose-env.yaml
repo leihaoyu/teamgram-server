@@ -37,7 +37,7 @@ services:
       - teamgram_net
     depends_on:
       - zookeeper
-    mem_limit: 256m
+    mem_limit: 512m
 
   etcd:
     image: quay.io/coreos/etcd:v3.5.2
