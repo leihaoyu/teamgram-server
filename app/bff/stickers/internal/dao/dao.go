@@ -13,7 +13,7 @@ import (
 
 // globalDownloadSem limits total concurrent sticker file downloads across all requests.
 // This prevents memory explosion when many sticker sets are fetched simultaneously.
-var globalDownloadSem = make(chan struct{}, 3)
+var globalDownloadSem = make(chan struct{}, 2)
 
 // singleFlightCall is a simple singleflight implementation for sticker set fetches.
 type singleFlightCall struct {

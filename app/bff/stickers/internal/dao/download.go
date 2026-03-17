@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"runtime"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -20,7 +22,8 @@ import (
 
 const (
 	filePartSize    = 512 * 1024 // 512KB per part
-	downloadWorkers = 3          // per-request concurrency (also capped by globalDownloadSem)
+	downloadWorkers = 2          // per-request concurrency (also capped by globalDownloadSem)
+	downloadBatch   = 20         // process stickers in batches to limit memory
 )
 
 // StickerDownloadInput holds the info needed to download one sticker file and upload it to DFS.
@@ -37,6 +40,7 @@ type StickerDownloadInput struct {
 // DownloadAndUploadStickerFiles downloads sticker files from Telegram Bot API and uploads them
 // to DFS (MinIO) synchronously. Returns DFS-backed Documents in the same order as inputs.
 // If any file fails, returns an error (caller should not cache partial results).
+// For large sets, processes in batches to limit peak memory usage.
 func (d *Dao) DownloadAndUploadStickerFiles(ctx context.Context, inputs []StickerDownloadInput) ([]*mtproto.Document, error) {
 	if len(inputs) == 0 {
 		return nil, nil
@@ -44,59 +48,77 @@ func (d *Dao) DownloadAndUploadStickerFiles(ctx context.Context, inputs []Sticke
 
 	log := logx.WithContext(ctx)
 	startAll := time.Now()
-	log.Infof("DownloadAndUploadStickerFiles - start: %d stickers, workers=%d", len(inputs), downloadWorkers)
+	log.Infof("DownloadAndUploadStickerFiles - start: %d stickers, workers=%d, batchSize=%d", len(inputs), downloadWorkers, downloadBatch)
 
 	results := make([]*mtproto.Document, len(inputs))
-	var (
-		mu       sync.Mutex
-		firstErr error
-	)
 
-	sem := make(chan struct{}, downloadWorkers)
-	var wg sync.WaitGroup
+	// Process in batches to limit peak memory
+	for batchStart := 0; batchStart < len(inputs); batchStart += downloadBatch {
+		batchEnd := batchStart + downloadBatch
+		if batchEnd > len(inputs) {
+			batchEnd = len(inputs)
+		}
 
-	for i := range inputs {
-		idx := i
-		input := inputs[i]
+		batch := inputs[batchStart:batchEnd]
+		log.Infof("DownloadAndUploadStickerFiles - batch [%d, %d) of %d", batchStart, batchEnd, len(inputs))
 
-		wg.Add(1)
-		sem <- struct{}{} // per-request concurrency limit
-		go func() {
-			defer wg.Done()
-			defer func() { <-sem }()
-			defer func() {
-				if r := recover(); r != nil {
-					mu.Lock()
-					if firstErr == nil {
-						firstErr = fmt.Errorf("panic downloading sticker %d: %v", idx, r)
+		var (
+			mu       sync.Mutex
+			firstErr error
+		)
+
+		sem := make(chan struct{}, downloadWorkers)
+		var wg sync.WaitGroup
+
+		for i := range batch {
+			idx := batchStart + i
+			input := batch[i]
+
+			wg.Add(1)
+			sem <- struct{}{} // per-request concurrency limit
+			go func() {
+				defer wg.Done()
+				defer func() { <-sem }()
+				defer func() {
+					if r := recover(); r != nil {
+						mu.Lock()
+						if firstErr == nil {
+							firstErr = fmt.Errorf("panic downloading sticker %d: %v", idx, r)
+						}
+						mu.Unlock()
+						logx.WithContext(ctx).Errorf("downloadAndUploadOne panic: %v", r)
 					}
-					mu.Unlock()
-					logx.WithContext(ctx).Errorf("downloadAndUploadOne panic: %v", r)
+				}()
+
+				// Acquire global semaphore to cap total memory usage across all requests
+				globalDownloadSem <- struct{}{}
+				defer func() { <-globalDownloadSem }()
+
+				doc, err := d.downloadAndUploadOne(ctx, &input)
+				mu.Lock()
+				defer mu.Unlock()
+				if err != nil {
+					if firstErr == nil {
+						firstErr = fmt.Errorf("sticker[%d] (%s): %w", idx, input.BotFileId, err)
+					}
+				} else {
+					results[idx] = doc
 				}
 			}()
+		}
 
-			// Acquire global semaphore to cap total memory usage across all requests
-			globalDownloadSem <- struct{}{}
-			defer func() { <-globalDownloadSem }()
+		wg.Wait()
 
-			doc, err := d.downloadAndUploadOne(ctx, &input)
-			mu.Lock()
-			defer mu.Unlock()
-			if err != nil {
-				if firstErr == nil {
-					firstErr = fmt.Errorf("sticker[%d] (%s): %w", idx, input.BotFileId, err)
-				}
-			} else {
-				results[idx] = doc
-			}
-		}()
-	}
+		if firstErr != nil {
+			log.Errorf("DownloadAndUploadStickerFiles - batch FAILED after %v: %v", time.Since(startAll), firstErr)
+			return nil, firstErr
+		}
 
-	wg.Wait()
-
-	if firstErr != nil {
-		log.Errorf("DownloadAndUploadStickerFiles - FAILED after %v: %v", time.Since(startAll), firstErr)
-		return nil, firstErr
+		// Force GC between batches to reclaim memory from completed downloads
+		if batchEnd < len(inputs) {
+			runtime.GC()
+			debug.FreeOSMemory()
+		}
 	}
 
 	log.Infof("DownloadAndUploadStickerFiles - SUCCESS: %d stickers in %v", len(inputs), time.Since(startAll))
@@ -151,6 +173,10 @@ func (d *Dao) downloadAndUploadOne(ctx context.Context, input *StickerDownloadIn
 		}
 	}
 
+	// Release file data early to reduce memory pressure
+	dataSize := len(data)
+	data = nil
+
 	// 4. Finalize to MinIO and register in documents table via media service
 	ext := path.Ext(fileInfo.FilePath)
 	if ext == "" {
@@ -191,7 +217,7 @@ func (d *Dao) downloadAndUploadOne(ctx context.Context, input *StickerDownloadIn
 	}
 
 	log.Infof("downloadAndUploadOne - %s → doc %d (%d bytes, %d parts) getFile=%v download=%v total=%v",
-		input.BotFileUniqueId, dfsDoc.GetId(), len(data), totalParts,
+		input.BotFileUniqueId, dfsDoc.GetId(), dataSize, totalParts,
 		tGetFile, tDownload, time.Since(start))
 
 	return dfsDoc, nil
@@ -263,13 +289,17 @@ func (d *Dao) downloadAndUploadThumb(ctx context.Context, thumbFileId string, cr
 		}
 	}
 
+	// Release thumb data early
+	thumbDataSize := len(data)
+	data = nil
+
 	ext := path.Ext(fileInfo.FilePath)
 	if ext == "" {
 		ext = ".webp"
 	}
 
 	log.Infof("downloadAndUploadThumb - uploaded thumb %s (%d bytes, %d parts)",
-		thumbFileId, len(data), thumbParts)
+		thumbFileId, thumbDataSize, thumbParts)
 
 	return mtproto.MakeTLInputFile(&mtproto.InputFile{
 		Id:    thumbTempFileId,

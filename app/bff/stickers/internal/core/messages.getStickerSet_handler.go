@@ -175,7 +175,19 @@ func (c *StickersCore) fetchAndCacheStickerSet(shortName string) (*mtproto.Messa
 	setAccessHash := rand.Int63()
 	now := time.Now().Unix()
 
-	dataJson, _ := json.Marshal(botResult)
+	// For large sets (600+ stickers), skip storing full stickers JSON to reduce memory
+	var dataJson []byte
+	if len(botResult.Stickers) <= 100 {
+		dataJson, _ = json.Marshal(botResult)
+	} else {
+		summary := &BotAPIStickerSetSummary{
+			Name:        botResult.Name,
+			Title:       botResult.Title,
+			StickerType: botResult.StickerType,
+			Count:       len(botResult.Stickers),
+		}
+		dataJson, _ = json.Marshal(summary)
+	}
 
 	// Build download inputs for each sticker
 	inputs := make([]dao.StickerDownloadInput, 0, len(botResult.Stickers))
@@ -402,6 +414,15 @@ var systemBuiltInPredicates = map[string]string{
 func isSystemBuiltInPredicate(predicate string) bool {
 	_, ok := systemBuiltInPredicates[predicate]
 	return ok
+}
+
+// BotAPIStickerSetSummary is a lightweight summary stored in DB for large sticker sets
+// instead of the full Bot API response (which can be very large for 600+ sticker sets).
+type BotAPIStickerSetSummary struct {
+	Name        string `json:"name"`
+	Title       string `json:"title"`
+	StickerType string `json:"sticker_type"`
+	Count       int    `json:"count"`
 }
 
 // computeStickerSetHash computes the Telegram-standard hash for a StickerSet from its document DOs.
