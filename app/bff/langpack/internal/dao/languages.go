@@ -8,6 +8,9 @@ import (
 // defaultLanguages is the full list of supported languages.
 // Based on Telegram's official langpack.getLanguages response, plus zh-hans and zh-hant.
 var defaultLanguages = []*mtproto.LangPackLanguage{
+	// Added: Simplified Chinese and Traditional Chinese
+	makeLang("Chinese (Simplified)", "简体中文", "zh-hans", "", "zh", 11302, 11302, true, false, false),
+	makeLang("Chinese (Traditional)", "繁體中文", "zh-hant", "", "zh", 11302, 11302, true, false, false),
 	makeLang("English", "English", "en", "", "en", 11302, 11302, true, false, false),
 	makeLang("Arabic", "العربية", "ar", "", "ar", 11302, 11227, true, false, true),
 	makeLang("Belarusian", "Беларуская", "be", "", "be", 11302, 9629, true, false, false),
@@ -39,9 +42,6 @@ var defaultLanguages = []*mtproto.LangPackLanguage{
 	makeLang("Ukrainian", "Українська", "uk", "", "uk", 11302, 11302, true, false, false),
 	makeLang("Uzbek", "Oʻzbek", "uz", "", "uz", 11302, 10061, true, false, false),
 	makeLang("Vietnamese", "Tiếng Việt", "vi", "", "vi", 11302, 11022, true, false, false),
-	// Added: Simplified Chinese and Traditional Chinese
-	makeLang("Chinese (Simplified)", "简体中文", "zh-hans", "", "zh", 11302, 11302, true, false, false),
-	makeLang("Chinese (Traditional)", "繁體中文", "zh-hant", "", "zh", 11302, 11302, true, false, false),
 }
 
 func makeLang(name, nativeName, langCode, baseLangCode, pluralCode string, stringsCount, translatedCount int32, official, beta, rtl bool) *mtproto.LangPackLanguage {
