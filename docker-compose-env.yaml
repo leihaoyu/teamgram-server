@@ -1,4 +1,4 @@
-version: "2.4"
+version: "3"
 
 ######## 项目依赖的环境，启动项目之前要先启动此环境 #######
 ######## The environment that the project depends on, starting this environment before starting the project #######
@@ -37,7 +37,6 @@ services:
       - teamgram_net
     depends_on:
       - zookeeper
-    mem_limit: 512m
 
   etcd:
     image: quay.io/coreos/etcd:v3.5.2
@@ -113,7 +112,6 @@ services:
     restart: always
     networks:
       - teamgram_net
-    mem_limit: 256m
 
   minio:
     image: minio/minio
