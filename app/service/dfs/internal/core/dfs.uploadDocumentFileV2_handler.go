@@ -11,13 +11,12 @@ package core
 
 import (
 	"bytes"
-	"context"
 	"fmt"
 	"image"
 	"math/rand"
+	"time"
 
 	"github.com/teamgram/marmota/pkg/bytes2"
-	"github.com/teamgram/marmota/pkg/threading2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/dfs/dfs"
 	"github.com/teamgram/teamgram-server/app/service/dfs/internal/imaging"
@@ -227,24 +226,40 @@ func (c *DfsCore) DfsUploadDocumentFileV2(in *dfs.TLDfsUploadDocumentFileV2) (*m
 		}
 	}
 
-	return threading2.WrapperGoFunc(
-		c.ctx,
-		document,
-		func(ctx context.Context) {
-			if isThumb {
-				_, err2 := c.svcCtx.Dao.PutDocumentFile(ctx,
-					fmt.Sprintf("%d.dat", documentId),
-					bytes.NewReader(cacheData))
-				if err2 != nil {
-					c.Logger.Errorf("dfs.uploadDocumentFile - error: %v", err2)
-				}
-			} else {
-				_, err2 := c.svcCtx.Dao.PutDocumentFile(ctx,
-					fmt.Sprintf("%d.dat", documentId),
-					c.svcCtx.Dao.NewSSDBReader(r.DfsFileInfo))
-				if err2 != nil {
-					c.Logger.Errorf("dfs.uploadDocumentFile - error: %v", err2)
-				}
+	// Sync write to MinIO to ensure file is persisted before SSDB cache expires
+	minioPath := fmt.Sprintf("%d.dat", documentId)
+	startTime := time.Now()
+
+	if isThumb {
+		uploadInfo, err2 := c.svcCtx.Dao.PutDocumentFile(c.ctx,
+			minioPath,
+			bytes.NewReader(cacheData))
+		elapsed := time.Since(startTime)
+		if err2 != nil {
+			c.Logger.Errorf("dfs.uploadDocumentFile - minio put FAILED: path=%s, size=%d, elapsed=%v, error=%v",
+				minioPath, len(cacheData), elapsed, err2)
+		} else {
+			c.Logger.Infof("dfs.uploadDocumentFile - minio put OK: path=%s, inputSize=%d, uploadedSize=%d, bucket=%s, elapsed=%v",
+				minioPath, len(cacheData), uploadInfo.Size, uploadInfo.Bucket, elapsed)
+		}
+	} else {
+		fileSize := r.DfsFileInfo.GetFileSize()
+		uploadInfo, err2 := c.svcCtx.Dao.PutDocumentFile(c.ctx,
+			minioPath,
+			c.svcCtx.Dao.NewSSDBReader(r.DfsFileInfo))
+		elapsed := time.Since(startTime)
+		if err2 != nil {
+			c.Logger.Errorf("dfs.uploadDocumentFile - minio put FAILED: path=%s, expectedSize=%d, elapsed=%v, error=%v",
+				minioPath, fileSize, elapsed, err2)
+		} else {
+			c.Logger.Infof("dfs.uploadDocumentFile - minio put OK: path=%s, expectedSize=%d, uploadedSize=%d, bucket=%s, elapsed=%v",
+				minioPath, fileSize, uploadInfo.Size, uploadInfo.Bucket, elapsed)
+			if uploadInfo.Size != fileSize {
+				c.Logger.Errorf("dfs.uploadDocumentFile - minio SIZE MISMATCH: path=%s, expected=%d, actual=%d",
+					minioPath, fileSize, uploadInfo.Size)
 			}
-		}).(*mtproto.Document), nil
+		}
+	}
+
+	return document, nil
 }

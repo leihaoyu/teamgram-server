@@ -63,12 +63,17 @@ func (c *DfsCore) DfsDownloadFile(in *dfs.TLDfsDownloadFile) (*mtproto.Upload_Fi
 			// fileLocation := location.To_InputDocumentFileLocation()
 			bytes, err = c.svcCtx.Dao.GetCacheFile(c.ctx, "documents", location.GetId(), offset, limit)
 			if err != nil {
+				c.Logger.Infof("dfs.downloadFile - SSDB cache miss for doc %d, falling back to MinIO: %v", location.GetId(), err)
 				path := fmt.Sprintf("%d.dat", location.GetId())
 				bytes, err = c.svcCtx.Dao.GetFile(c.ctx, "documents", path, offset, limit)
 				if err != nil {
-					c.Logger.Errorf("download file: %v", err)
+					c.Logger.Errorf("dfs.downloadFile - MinIO ALSO FAILED for doc %d (path=%s): %v", location.GetId(), path, err)
 					err = nil
 					bytes = []byte{}
+				} else if len(bytes) == 0 {
+					c.Logger.Errorf("dfs.downloadFile - MinIO returned EMPTY data for doc %d (path=%s), file may not exist or is corrupt", location.GetId(), path)
+				} else {
+					c.Logger.Infof("dfs.downloadFile - MinIO fallback OK for doc %d, size=%d", location.GetId(), len(bytes))
 				}
 			}
 			sType = int32(location.GetAccessHash() >> 32)
