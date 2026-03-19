@@ -530,6 +530,12 @@ docker exec -i <mysql-container> mysql -u root -p teamgram_stickers -e "
 - `runall-docker.sh` 中每个进程有独立的 `GOMEMLIMIT=XMiB`（覆盖全局值）
 - 总预算 ~1000MiB，留 280MiB 给 OS、page cache、非 Go 内存
 
+# 例如查看 BFF 的堆内存分配
+go tool pprof http://localhost:6061/debug/pprof/heap
+
+# 查看 DFS 的 goroutine 堆栈
+curl http://localhost:6062/debug/pprof/goroutine?debug=1
+
 **⚠️ 注意**: 不要把 GOMEMLIMIT 设置为接近容器 mem_limit 的值（如 1100MiB），否则每个 Go 进程的 scavenger 都不会积极归还内存页，导致容器 RSS 接近限制。
 
 ### entrypoint.sh

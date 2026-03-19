@@ -25,9 +25,6 @@ services:
     networks:
       - teamgram_net
     mem_limit: 1280m
-    environment:
-      - GOMEMLIMIT=100MiB
-      - GOGC=50
 
 networks:
   teamgram_net:
