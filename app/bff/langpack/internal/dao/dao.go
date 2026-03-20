@@ -19,7 +19,7 @@ import (
 
 // langPackVersion is bumped when the server restarts or cache is refreshed.
 // Not a real incremental version - clients will re-fetch on version mismatch.
-var langPackVersion = int32(1)
+var langPackVersion = int32(2)
 
 // LangPackEntry stores a parsed language pack.
 type LangPackEntry struct {
@@ -80,6 +80,8 @@ func (d *Dao) GetLangPack(ctx context.Context, platform, langCode string) (*Lang
 	// Check local file cache
 	entry, err := d.loadFromFile(langCode, platform)
 	if err == nil && entry != nil {
+		// Merge custom strings before caching
+		entry.Strings = append(entry.Strings, GetCustomStrings(langCode)...)
 		d.mu.Lock()
 		d.cache[cacheKey] = entry
 		d.mu.Unlock()
@@ -170,7 +172,7 @@ func (d *Dao) fetchAndCache(ctx context.Context, langCode, platform string) (*La
 	}
 
 	entry := &LangPackEntry{
-		Strings:  strings,
+		Strings:  append(strings, GetCustomStrings(langCode)...),
 		Version:  langPackVersion,
 		LoadedAt: time.Now(),
 	}
