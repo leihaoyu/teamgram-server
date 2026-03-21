@@ -81,7 +81,8 @@ func (c *AuthorizationCore) joinAutoGroup(
 				result.Err = err
 				return
 			}
-			// No welcome message for the group creator
+			// Send welcome message for the group creator too — this also creates the dialog entry
+			c.sendAutoGroupWelcome(ctx, systemAdminId, chatId, userId, firstName, groupType, groupKey, locale)
 		} else {
 			// Active group exists — add the user to it
 			_, err := c.svcCtx.Dao.ChatClient.ChatAddChatUser(ctx, &chatpb.TLChatAddChatUser{
