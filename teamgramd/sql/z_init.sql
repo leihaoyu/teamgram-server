@@ -1,2 +1,6 @@
 INSERT INTO users (id, user_type, access_hash, secret_key_id, first_name, last_name, username, phone, country_code, verified, support, scam, fake, premium, about, state, is_bot, account_days_ttl, photo_id, restricted, restriction_reason, archive_and_mute_new_noncontact_peers, emoji_status_document_id, emoji_status_until, deleted, delete_reason, created_at, updated_at) VALUES
 (777000, 4, 6599886787491911851, 6895602324158323006, 'Teamgram', '', 'teamgram', '42777', '', 1, 0, 0, 0, 0, '', 0, 0, 180, 0, 0, '', 0, 0, 0, 0, '', '2018-09-25 13:43:11', '2021-12-17 12:40:51');
+
+-- 群管理系统用户（小助手），用于自动群组的欢迎消息发送
+INSERT INTO users (id, user_type, access_hash, secret_key_id, first_name, last_name, username, phone, country_code, verified, support, scam, fake, premium, about, state, is_bot, account_days_ttl, photo_id, restricted, restriction_reason, archive_and_mute_new_noncontact_peers, emoji_status_document_id, emoji_status_until, deleted, delete_reason, created_at, updated_at) VALUES
+(777001, 4, 7288839517438231549, 7195603425269434117, '小助手', '', 'group_assistant', '42778', '', 1, 0, 0, 0, 0, '', 0, 0, 180, 0, 0, '', 0, 0, 0, 0, '', '2026-03-22 00:00:00', '2026-03-22 00:00:00');

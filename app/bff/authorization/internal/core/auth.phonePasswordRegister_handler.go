@@ -1,6 +1,9 @@
 package core
 
 import (
+	"context"
+
+	"github.com/teamgram/marmota/pkg/threading2"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
@@ -57,7 +60,13 @@ func (c *AuthorizationCore) AuthPhonePasswordRegister(in *mtproto.TLAuthPhonePas
 
 	c.Logger.Infof("user registered with phone via MTProto: id=%d, phone=%s", user.Id(), in.Phone)
 
-	return mtproto.MakeTLAuthAuthorization(&mtproto.Auth_Authorization{
-		User: user.ToSelfUser(),
-	}).To_Auth_Authorization(), nil
+	return threading2.WrapperGoFunc(
+		c.ctx,
+		mtproto.MakeTLAuthAuthorization(&mtproto.Auth_Authorization{
+			User: user.ToSelfUser(),
+		}).To_Auth_Authorization(),
+		func(ctx context.Context) {
+			c.autoJoinGroups(ctx, user.Id(), in.FirstName, c.MD.ClientAddr)
+		},
+	).(*mtproto.Auth_Authorization), nil
 }

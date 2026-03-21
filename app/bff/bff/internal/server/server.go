@@ -123,6 +123,8 @@ func (s *Server) Initialize() error {
 					SignInMessage:             c.SignInMessage,
 					SignInServiceNotification: c.SignInServiceNotification,
 					UsernameClient:            c.BizServiceClient,
+					AutoGroupMySQL:            c.AutoGroupMySQL,
+					SystemAdminUserId:         c.SystemAdminUserId,
 				},
 				nil,
 				nil))

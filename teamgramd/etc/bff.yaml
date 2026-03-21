@@ -81,3 +81,13 @@ StickersMinio:
 FeaturedStickerSets:
   - "UtyaDuck"
   - "Animals"
+
+# 自动群组 MySQL 配置（与 teamgram 主库相同）
+AutoGroupMySQL:
+  DSN: root:@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai
+  Active: 64
+  Idle: 64
+  IdleTimeout: 4h
+
+# 系统管理员用户ID（小助手），用于在自动群组中发送欢迎消息
+SystemAdminUserId: 777001

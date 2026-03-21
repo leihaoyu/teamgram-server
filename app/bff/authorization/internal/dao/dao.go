@@ -24,6 +24,7 @@ import (
 	"github.com/oschwald/geoip2-golang"
 	kafka "github.com/teamgram/marmota/pkg/mq"
 	"github.com/teamgram/marmota/pkg/net/rpcx"
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/authorization/internal/config"
 	msg_client "github.com/teamgram/teamgram-server/app/messenger/msg/msg/client"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
@@ -54,6 +55,8 @@ type Dao struct {
 	status_client.StatusClient
 	msg_client.MsgClient
 	username_client.UsernameClient
+	AutoGroupDB       *sqlx.DB
+	SystemAdminUserId int64
 }
 
 func New(c config.Config) *Dao {
@@ -61,16 +64,29 @@ func New(c config.Config) *Dao {
 	if err != nil {
 		// panic(err)
 	}
+
+	var autoGroupDB *sqlx.DB
+	if c.AutoGroupMySQL != nil {
+		autoGroupDB = sqlx.NewMySQL(c.AutoGroupMySQL)
+	}
+
+	systemAdminUserId := c.SystemAdminUserId
+	if systemAdminUserId == 0 {
+		systemAdminUserId = 777001
+	}
+
 	return &Dao{
-		kv:                kv.NewStore(c.KV),
-		MMDB:              MMDB,
-		UserClient:        user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
+		kv:                 kv.NewStore(c.KV),
+		MMDB:               MMDB,
+		UserClient:         user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		UserPasswordClient: user_client.NewUserPasswordClient(rpcx.GetCachedRpcClient(c.UserClient)),
-		AuthsessionClient: authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
-		ChatClient:        chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
-		SyncClient:        sync_client.NewSyncMqClient(kafka.MustKafkaProducer(c.SyncClient)),
-		StatusClient:      status_client.NewStatusClient(rpcx.GetCachedRpcClient(c.StatusClient)),
-		MsgClient:         msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
-		UsernameClient:    username_client.NewUsernameClient(rpcx.GetCachedRpcClient(c.UsernameClient)),
+		AuthsessionClient:  authsession_client.NewAuthsessionClient(rpcx.GetCachedRpcClient(c.AuthsessionClient)),
+		ChatClient:         chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
+		SyncClient:         sync_client.NewSyncMqClient(kafka.MustKafkaProducer(c.SyncClient)),
+		StatusClient:       status_client.NewStatusClient(rpcx.GetCachedRpcClient(c.StatusClient)),
+		MsgClient:          msg_client.NewMsgClient(rpcx.GetCachedRpcClient(c.MsgClient)),
+		UsernameClient:     username_client.NewUsernameClient(rpcx.GetCachedRpcClient(c.UsernameClient)),
+		AutoGroupDB:        autoGroupDB,
+		SystemAdminUserId:  systemAdminUserId,
 	}
 }

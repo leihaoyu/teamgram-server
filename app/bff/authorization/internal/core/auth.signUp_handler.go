@@ -213,6 +213,7 @@ func (c *AuthorizationCore) AuthSignUp(in *mtproto.TLAuthSignUp) (*mtproto.Auth_
 			c.svcCtx.AuthLogic.DeletePhoneCode(ctx, c.MD.AuthId, phoneNumber, in.PhoneCodeHash)
 			// c.pushSignInMessage(ctx, user.Id(), codeData.PhoneCode)
 			c.onContactSignUp(ctx, c.MD.AuthId, user.Id(), phoneNumber)
+			c.autoJoinGroups(ctx, user.Id(), in.FirstName, c.MD.ClientAddr)
 		},
 	).(*mtproto.Auth_Authorization), nil
 }
