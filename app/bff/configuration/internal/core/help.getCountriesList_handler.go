@@ -19,17 +19,71 @@
 package core
 
 import (
+	_ "embed"
+	"strings"
+	"sync"
+
 	"github.com/teamgram/proto/mtproto"
 )
+
+//go:embed PhoneCountries.txt
+var phoneCountriesData string
+
+var (
+	countriesOnce sync.Once
+	cachedResult  *mtproto.Help_CountriesList
+)
+
+func loadCountries() *mtproto.Help_CountriesList {
+	countriesOnce.Do(func() {
+		var countries []*mtproto.Help_Country
+		lines := strings.Split(strings.TrimSpace(phoneCountriesData), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			parts := strings.SplitN(line, ";", 4)
+			if len(parts) < 4 {
+				continue
+			}
+			dialCode := parts[0]
+			iso2 := parts[1]
+			pattern := parts[2]
+			name := parts[3]
+
+			var patterns []string
+			if pattern != "" {
+				patterns = []string{pattern}
+			}
+
+			countryCode := mtproto.MakeTLHelpCountryCode(&mtproto.Help_CountryCode{
+				CountryCode: dialCode,
+				Patterns:    patterns,
+			}).To_Help_CountryCode()
+
+			country := mtproto.MakeTLHelpCountry(&mtproto.Help_Country{
+				Hidden:       false,
+				Iso2:         iso2,
+				DefaultName:  name,
+				CountryCodes: []*mtproto.Help_CountryCode{countryCode},
+			}).To_Help_Country()
+
+			countries = append(countries, country)
+		}
+
+		cachedResult = mtproto.MakeTLHelpCountriesList(&mtproto.Help_CountriesList{
+			Countries: countries,
+			Hash:      1,
+		}).To_Help_CountriesList()
+	})
+	return cachedResult
+}
 
 // HelpGetCountriesList
 // help.getCountriesList#735787a8 lang_code:string hash:int = help.CountriesList;
 func (c *ConfigurationCore) HelpGetCountriesList(in *mtproto.TLHelpGetCountriesList) (*mtproto.Help_CountriesList, error) {
-	// TODO: not impl
-	c.Logger.Errorf("help.getCountriesList - method not impl.")
-
-	return mtproto.MakeTLHelpCountriesList(&mtproto.Help_CountriesList{
-		Countries: []*mtproto.Help_Country{},
-		Hash:      0,
-	}).To_Help_CountriesList(), nil
+	result := loadCountries()
+	c.Logger.Debugf("help.getCountriesList - returning %d countries", len(result.Countries))
+	return result, nil
 }
