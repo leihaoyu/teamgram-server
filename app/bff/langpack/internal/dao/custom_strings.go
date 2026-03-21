@@ -1,8 +1,8 @@
 package dao
 
 import (
+	_ "embed"
 	"encoding/json"
-	"os"
 	"strings"
 	"sync"
 
@@ -16,25 +16,18 @@ var (
 	customStringsOnce sync.Once
 )
 
-// customStringsPath is the path to the JSON file containing custom localization strings.
-// Can be overridden before first call to GetCustomStrings.
-var customStringsPath = "data/langpack/custom_strings.json"
+//go:embed custom_strings.json
+var customStringsJSON []byte
 
 func loadCustomStrings() {
 	customStrings = make(map[string]map[string]string)
 
-	data, err := os.ReadFile(customStringsPath)
-	if err != nil {
-		logx.Errorf("loadCustomStrings - failed to read %s: %v", customStringsPath, err)
+	if err := json.Unmarshal(customStringsJSON, &customStrings); err != nil {
+		logx.Errorf("loadCustomStrings - failed to parse embedded JSON: %v", err)
 		return
 	}
 
-	if err := json.Unmarshal(data, &customStrings); err != nil {
-		logx.Errorf("loadCustomStrings - failed to parse %s: %v", customStringsPath, err)
-		return
-	}
-
-	logx.Infof("loadCustomStrings - loaded %d languages from %s", len(customStrings), customStringsPath)
+	logx.Infof("loadCustomStrings - loaded %d languages from embedded custom_strings.json", len(customStrings))
 }
 
 // GetCustomStrings returns custom localization strings for the given language code.
@@ -46,8 +39,14 @@ func GetCustomStrings(langCode string) []*mtproto.LangPackString {
 
 	strs, ok := customStrings[code]
 	if !ok {
-		// Fallback to English
-		strs = customStrings["en"]
+		// Try base language prefix (e.g. "pt-br" -> "pt", "zh-hans" -> "zh")
+		if idx := strings.IndexAny(code, "-_"); idx > 0 {
+			strs, ok = customStrings[code[:idx]]
+		}
+		if !ok {
+			// Fallback to English
+			strs = customStrings["en"]
+		}
 	}
 
 	if len(strs) == 0 {

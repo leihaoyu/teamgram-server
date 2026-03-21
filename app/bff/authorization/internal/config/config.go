@@ -50,10 +50,10 @@ type Config struct {
 	SignInMessage             []conf.MessageEntityConfig `json:",optional"`
 }
 
-// GetAuthMethods 获取配置的认证方式列表，默认返回 ["username_password", "phone_sms_code"]
+// GetAuthMethods 获取配置的认证方式列表，默认返回 ["username_password", "phone_password"]
 func (c *Config) GetAuthMethods() []string {
 	if len(c.AuthMethods) == 0 {
-		return []string{AuthMethodUsernamePassword, AuthMethodPhoneSmsCode}
+		return []string{AuthMethodUsernamePassword, AuthMethodPhonePassword}
 	}
 	return c.AuthMethods
 }

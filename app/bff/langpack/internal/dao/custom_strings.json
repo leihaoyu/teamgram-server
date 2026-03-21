@@ -20,7 +20,9 @@
     "CustomAuth.Error.UsernameInvalid": "Invalid username",
     "CustomAuth.Error.PhoneInvalid": "Invalid phone number",
     "CustomAuth.Error.PhoneOccupied": "Phone number already registered",
-    "CustomAuth.Error.Generic": "Authentication failed, please try again"
+    "CustomAuth.Error.Generic": "Authentication failed, please try again",
+    "CustomAuth.SwitchToAccount": "Account Login",
+    "CustomAuth.SwitchToPhone": "Phone Login"
   },
   "zh-hans": {
     "CustomAuth.Login": "登录",
@@ -43,7 +45,9 @@
     "CustomAuth.Error.UsernameInvalid": "用户名无效",
     "CustomAuth.Error.PhoneInvalid": "手机号无效",
     "CustomAuth.Error.PhoneOccupied": "该手机号已被注册",
-    "CustomAuth.Error.Generic": "认证失败，请重试"
+    "CustomAuth.Error.Generic": "认证失败，请重试",
+    "CustomAuth.SwitchToAccount": "账号登录",
+    "CustomAuth.SwitchToPhone": "手机号登录"
   },
   "zh-hant": {
     "CustomAuth.Login": "登入",
@@ -66,7 +70,9 @@
     "CustomAuth.Error.UsernameInvalid": "使用者名稱無效",
     "CustomAuth.Error.PhoneInvalid": "手機號無效",
     "CustomAuth.Error.PhoneOccupied": "該手機號已被註冊",
-    "CustomAuth.Error.Generic": "認證失敗，請重試"
+    "CustomAuth.Error.Generic": "認證失敗，請重試",
+    "CustomAuth.SwitchToAccount": "帳號登入",
+    "CustomAuth.SwitchToPhone": "手機號登入"
   },
   "ar": {
     "CustomAuth.Login": "تسجيل الدخول",
@@ -89,7 +95,9 @@
     "CustomAuth.Error.UsernameInvalid": "اسم المستخدم غير صالح",
     "CustomAuth.Error.PhoneInvalid": "رقم الهاتف غير صالح",
     "CustomAuth.Error.PhoneOccupied": "رقم الهاتف مسجّل بالفعل",
-    "CustomAuth.Error.Generic": "فشل التحقق، يرجى المحاولة مرة أخرى"
+    "CustomAuth.Error.Generic": "فشل التحقق، يرجى المحاولة مرة أخرى",
+    "CustomAuth.SwitchToAccount": "تسجيل دخول بالحساب",
+    "CustomAuth.SwitchToPhone": "تسجيل دخول بالهاتف"
   },
   "be": {
     "CustomAuth.Login": "Увайсці",
@@ -112,7 +120,9 @@
     "CustomAuth.Error.UsernameInvalid": "Няправільнае імя карыстальніка",
     "CustomAuth.Error.PhoneInvalid": "Няправільны нумар тэлефона",
     "CustomAuth.Error.PhoneOccupied": "Нумар тэлефона ўжо зарэгістраваны",
-    "CustomAuth.Error.Generic": "Памылка аўтэнтыфікацыі, паспрабуйце яшчэ раз"
+    "CustomAuth.Error.Generic": "Памылка аўтэнтыфікацыі, паспрабуйце яшчэ раз",
+    "CustomAuth.SwitchToAccount": "Уваход з акаўнтам",
+    "CustomAuth.SwitchToPhone": "Уваход з тэлефонам"
   },
   "ca": {
     "CustomAuth.Login": "Iniciar sessió",
@@ -135,7 +145,9 @@
     "CustomAuth.Error.UsernameInvalid": "Nom d'usuari no vàlid",
     "CustomAuth.Error.PhoneInvalid": "Número de telèfon no vàlid",
     "CustomAuth.Error.PhoneOccupied": "El número de telèfon ja està registrat",
-    "CustomAuth.Error.Generic": "Error d'autenticació, torna-ho a provar"
+    "CustomAuth.Error.Generic": "Error d'autenticació, torna-ho a provar",
+    "CustomAuth.SwitchToAccount": "Accés amb compte",
+    "CustomAuth.SwitchToPhone": "Accés amb telèfon"
   },
   "hr": {
     "CustomAuth.Login": "Prijava",
@@ -158,7 +170,9 @@
     "CustomAuth.Error.UsernameInvalid": "Nevažeće korisničko ime",
     "CustomAuth.Error.PhoneInvalid": "Nevažeći broj telefona",
     "CustomAuth.Error.PhoneOccupied": "Broj telefona je već registriran",
-    "CustomAuth.Error.Generic": "Autentifikacija nije uspjela, pokušajte ponovo"
+    "CustomAuth.Error.Generic": "Autentifikacija nije uspjela, pokušajte ponovo",
+    "CustomAuth.SwitchToAccount": "Prijava računom",
+    "CustomAuth.SwitchToPhone": "Prijava telefonom"
   },
   "cs": {
     "CustomAuth.Login": "Přihlásit se",
@@ -181,7 +195,9 @@
     "CustomAuth.Error.UsernameInvalid": "Neplatné uživatelské jméno",
     "CustomAuth.Error.PhoneInvalid": "Neplatné telefonní číslo",
     "CustomAuth.Error.PhoneOccupied": "Telefonní číslo je již registrováno",
-    "CustomAuth.Error.Generic": "Ověření selhalo, zkuste to znovu"
+    "CustomAuth.Error.Generic": "Ověření selhalo, zkuste to znovu",
+    "CustomAuth.SwitchToAccount": "Přihlášení účtem",
+    "CustomAuth.SwitchToPhone": "Přihlášení telefonem"
   },
   "nl": {
     "CustomAuth.Login": "Inloggen",
@@ -204,7 +220,9 @@
     "CustomAuth.Error.UsernameInvalid": "Ongeldige gebruikersnaam",
     "CustomAuth.Error.PhoneInvalid": "Ongeldig telefoonnummer",
     "CustomAuth.Error.PhoneOccupied": "Telefoonnummer is al geregistreerd",
-    "CustomAuth.Error.Generic": "Verificatie mislukt, probeer het opnieuw"
+    "CustomAuth.Error.Generic": "Verificatie mislukt, probeer het opnieuw",
+    "CustomAuth.SwitchToAccount": "Inloggen met account",
+    "CustomAuth.SwitchToPhone": "Inloggen met telefoon"
   },
   "fi": {
     "CustomAuth.Login": "Kirjaudu sisään",
@@ -227,7 +245,9 @@
     "CustomAuth.Error.UsernameInvalid": "Virheellinen käyttäjänimi",
     "CustomAuth.Error.PhoneInvalid": "Virheellinen puhelinnumero",
     "CustomAuth.Error.PhoneOccupied": "Puhelinnumero on jo rekisteröity",
-    "CustomAuth.Error.Generic": "Todennus epäonnistui, yritä uudelleen"
+    "CustomAuth.Error.Generic": "Todennus epäonnistui, yritä uudelleen",
+    "CustomAuth.SwitchToAccount": "Tilikirjautuminen",
+    "CustomAuth.SwitchToPhone": "Puhelinkirjautuminen"
   },
   "fr": {
     "CustomAuth.Login": "Se connecter",
@@ -250,7 +270,9 @@
     "CustomAuth.Error.UsernameInvalid": "Nom d'utilisateur invalide",
     "CustomAuth.Error.PhoneInvalid": "Numéro de téléphone invalide",
     "CustomAuth.Error.PhoneOccupied": "Le numéro de téléphone est déjà enregistré",
-    "CustomAuth.Error.Generic": "Échec de l'authentification, veuillez réessayer"
+    "CustomAuth.Error.Generic": "Échec de l'authentification, veuillez réessayer",
+    "CustomAuth.SwitchToAccount": "Connexion par compte",
+    "CustomAuth.SwitchToPhone": "Connexion par téléphone"
   },
   "de": {
     "CustomAuth.Login": "Anmelden",
@@ -273,7 +295,9 @@
     "CustomAuth.Error.UsernameInvalid": "Ungültiger Benutzername",
     "CustomAuth.Error.PhoneInvalid": "Ungültige Telefonnummer",
     "CustomAuth.Error.PhoneOccupied": "Telefonnummer ist bereits registriert",
-    "CustomAuth.Error.Generic": "Authentifizierung fehlgeschlagen, bitte versuche es erneut"
+    "CustomAuth.Error.Generic": "Authentifizierung fehlgeschlagen, bitte versuche es erneut",
+    "CustomAuth.SwitchToAccount": "Konto-Anmeldung",
+    "CustomAuth.SwitchToPhone": "Telefon-Anmeldung"
   },
   "he": {
     "CustomAuth.Login": "התחברות",
@@ -296,7 +320,9 @@
     "CustomAuth.Error.UsernameInvalid": "שם משתמש לא חוקי",
     "CustomAuth.Error.PhoneInvalid": "מספר טלפון לא חוקי",
     "CustomAuth.Error.PhoneOccupied": "מספר הטלפון כבר רשום",
-    "CustomAuth.Error.Generic": "האימות נכשל, נסה שוב"
+    "CustomAuth.Error.Generic": "האימות נכשל, נסה שוב",
+    "CustomAuth.SwitchToAccount": "התחברות עם חשבון",
+    "CustomAuth.SwitchToPhone": "התחברות עם טלפון"
   },
   "hu": {
     "CustomAuth.Login": "Bejelentkezés",
@@ -319,7 +345,9 @@
     "CustomAuth.Error.UsernameInvalid": "Érvénytelen felhasználónév",
     "CustomAuth.Error.PhoneInvalid": "Érvénytelen telefonszám",
     "CustomAuth.Error.PhoneOccupied": "A telefonszám már regisztrálva van",
-    "CustomAuth.Error.Generic": "A hitelesítés sikertelen, próbáld újra"
+    "CustomAuth.Error.Generic": "A hitelesítés sikertelen, próbáld újra",
+    "CustomAuth.SwitchToAccount": "Fiók bejelentkezés",
+    "CustomAuth.SwitchToPhone": "Telefon bejelentkezés"
   },
   "id": {
     "CustomAuth.Login": "Masuk",
@@ -342,7 +370,9 @@
     "CustomAuth.Error.UsernameInvalid": "Nama pengguna tidak valid",
     "CustomAuth.Error.PhoneInvalid": "Nomor telepon tidak valid",
     "CustomAuth.Error.PhoneOccupied": "Nomor telepon sudah terdaftar",
-    "CustomAuth.Error.Generic": "Autentikasi gagal, silakan coba lagi"
+    "CustomAuth.Error.Generic": "Autentikasi gagal, silakan coba lagi",
+    "CustomAuth.SwitchToAccount": "Login Akun",
+    "CustomAuth.SwitchToPhone": "Login Telepon"
   },
   "it": {
     "CustomAuth.Login": "Accedi",
@@ -365,7 +395,9 @@
     "CustomAuth.Error.UsernameInvalid": "Nome utente non valido",
     "CustomAuth.Error.PhoneInvalid": "Numero di telefono non valido",
     "CustomAuth.Error.PhoneOccupied": "Il numero di telefono è già registrato",
-    "CustomAuth.Error.Generic": "Autenticazione fallita, riprova"
+    "CustomAuth.Error.Generic": "Autenticazione fallita, riprova",
+    "CustomAuth.SwitchToAccount": "Accesso con account",
+    "CustomAuth.SwitchToPhone": "Accesso con telefono"
   },
   "kk": {
     "CustomAuth.Login": "Кіру",
@@ -388,7 +420,9 @@
     "CustomAuth.Error.UsernameInvalid": "Жарамсыз пайдаланушы аты",
     "CustomAuth.Error.PhoneInvalid": "Жарамсыз телефон нөмірі",
     "CustomAuth.Error.PhoneOccupied": "Телефон нөмірі тіркелген",
-    "CustomAuth.Error.Generic": "Аутентификация сәтсіз, қайта көріңіз"
+    "CustomAuth.Error.Generic": "Аутентификация сәтсіз, қайта көріңіз",
+    "CustomAuth.SwitchToAccount": "Аккаунтпен кіру",
+    "CustomAuth.SwitchToPhone": "Телефонмен кіру"
   },
   "ko": {
     "CustomAuth.Login": "로그인",
@@ -411,7 +445,9 @@
     "CustomAuth.Error.UsernameInvalid": "유효하지 않은 사용자 이름",
     "CustomAuth.Error.PhoneInvalid": "유효하지 않은 전화번호",
     "CustomAuth.Error.PhoneOccupied": "이미 등록된 전화번호입니다",
-    "CustomAuth.Error.Generic": "인증 실패, 다시 시도하세요"
+    "CustomAuth.Error.Generic": "인증 실패, 다시 시도하세요",
+    "CustomAuth.SwitchToAccount": "계정 로그인",
+    "CustomAuth.SwitchToPhone": "전화번호 로그인"
   },
   "ms": {
     "CustomAuth.Login": "Log Masuk",
@@ -434,7 +470,9 @@
     "CustomAuth.Error.UsernameInvalid": "Nama pengguna tidak sah",
     "CustomAuth.Error.PhoneInvalid": "Nombor telefon tidak sah",
     "CustomAuth.Error.PhoneOccupied": "Nombor telefon sudah didaftarkan",
-    "CustomAuth.Error.Generic": "Pengesahan gagal, sila cuba lagi"
+    "CustomAuth.Error.Generic": "Pengesahan gagal, sila cuba lagi",
+    "CustomAuth.SwitchToAccount": "Log Masuk Akaun",
+    "CustomAuth.SwitchToPhone": "Log Masuk Telefon"
   },
   "nb": {
     "CustomAuth.Login": "Logg inn",
@@ -457,7 +495,9 @@
     "CustomAuth.Error.UsernameInvalid": "Ugyldig brukernavn",
     "CustomAuth.Error.PhoneInvalid": "Ugyldig telefonnummer",
     "CustomAuth.Error.PhoneOccupied": "Telefonnummeret er allerede registrert",
-    "CustomAuth.Error.Generic": "Autentisering mislyktes, prøv igjen"
+    "CustomAuth.Error.Generic": "Autentisering mislyktes, prøv igjen",
+    "CustomAuth.SwitchToAccount": "Kontopålogging",
+    "CustomAuth.SwitchToPhone": "Telefonpålogging"
   },
   "fa": {
     "CustomAuth.Login": "ورود",
@@ -480,7 +520,9 @@
     "CustomAuth.Error.UsernameInvalid": "نام کاربری نامعتبر",
     "CustomAuth.Error.PhoneInvalid": "شماره تلفن نامعتبر",
     "CustomAuth.Error.PhoneOccupied": "شماره تلفن قبلاً ثبت شده",
-    "CustomAuth.Error.Generic": "احراز هویت ناموفق بود، لطفاً دوباره تلاش کنید"
+    "CustomAuth.Error.Generic": "احراز هویت ناموفق بود، لطفاً دوباره تلاش کنید",
+    "CustomAuth.SwitchToAccount": "ورود با حساب",
+    "CustomAuth.SwitchToPhone": "ورود با تلفن"
   },
   "pl": {
     "CustomAuth.Login": "Zaloguj się",
@@ -503,7 +545,9 @@
     "CustomAuth.Error.UsernameInvalid": "Nieprawidłowa nazwa użytkownika",
     "CustomAuth.Error.PhoneInvalid": "Nieprawidłowy numer telefonu",
     "CustomAuth.Error.PhoneOccupied": "Numer telefonu jest już zarejestrowany",
-    "CustomAuth.Error.Generic": "Uwierzytelnianie nie powiodło się, spróbuj ponownie"
+    "CustomAuth.Error.Generic": "Uwierzytelnianie nie powiodło się, spróbuj ponownie",
+    "CustomAuth.SwitchToAccount": "Logowanie kontem",
+    "CustomAuth.SwitchToPhone": "Logowanie telefonem"
   },
   "pt-br": {
     "CustomAuth.Login": "Entrar",
@@ -526,7 +570,9 @@
     "CustomAuth.Error.UsernameInvalid": "Nome de usuário inválido",
     "CustomAuth.Error.PhoneInvalid": "Número de telefone inválido",
     "CustomAuth.Error.PhoneOccupied": "O número de telefone já está cadastrado",
-    "CustomAuth.Error.Generic": "Falha na autenticação, tente novamente"
+    "CustomAuth.Error.Generic": "Falha na autenticação, tente novamente",
+    "CustomAuth.SwitchToAccount": "Login com conta",
+    "CustomAuth.SwitchToPhone": "Login com telefone"
   },
   "ro": {
     "CustomAuth.Login": "Autentificare",
@@ -549,7 +595,9 @@
     "CustomAuth.Error.UsernameInvalid": "Nume de utilizator invalid",
     "CustomAuth.Error.PhoneInvalid": "Număr de telefon invalid",
     "CustomAuth.Error.PhoneOccupied": "Numărul de telefon este deja înregistrat",
-    "CustomAuth.Error.Generic": "Autentificarea a eșuat, încearcă din nou"
+    "CustomAuth.Error.Generic": "Autentificarea a eșuat, încearcă din nou",
+    "CustomAuth.SwitchToAccount": "Autentificare cu cont",
+    "CustomAuth.SwitchToPhone": "Autentificare cu telefon"
   },
   "ru": {
     "CustomAuth.Login": "Войти",
@@ -572,7 +620,9 @@
     "CustomAuth.Error.UsernameInvalid": "Недопустимое имя пользователя",
     "CustomAuth.Error.PhoneInvalid": "Недопустимый номер телефона",
     "CustomAuth.Error.PhoneOccupied": "Номер телефона уже зарегистрирован",
-    "CustomAuth.Error.Generic": "Ошибка аутентификации, попробуйте снова"
+    "CustomAuth.Error.Generic": "Ошибка аутентификации, попробуйте снова",
+    "CustomAuth.SwitchToAccount": "Вход по аккаунту",
+    "CustomAuth.SwitchToPhone": "Вход по телефону"
   },
   "sr": {
     "CustomAuth.Login": "Пријава",
@@ -595,7 +645,9 @@
     "CustomAuth.Error.UsernameInvalid": "Неважеће корисничко име",
     "CustomAuth.Error.PhoneInvalid": "Неважећи број телефона",
     "CustomAuth.Error.PhoneOccupied": "Број телефона је већ регистрован",
-    "CustomAuth.Error.Generic": "Аутентификација није успела, покушајте поново"
+    "CustomAuth.Error.Generic": "Аутентификација није успела, покушајте поново",
+    "CustomAuth.SwitchToAccount": "Пријава налогом",
+    "CustomAuth.SwitchToPhone": "Пријава телефоном"
   },
   "sk": {
     "CustomAuth.Login": "Prihlásiť sa",
@@ -618,7 +670,9 @@
     "CustomAuth.Error.UsernameInvalid": "Neplatné meno používateľa",
     "CustomAuth.Error.PhoneInvalid": "Neplatné telefónne číslo",
     "CustomAuth.Error.PhoneOccupied": "Telefónne číslo je už registrované",
-    "CustomAuth.Error.Generic": "Overenie zlyhalo, skúste to znova"
+    "CustomAuth.Error.Generic": "Overenie zlyhalo, skúste to znova",
+    "CustomAuth.SwitchToAccount": "Prihlásenie účtom",
+    "CustomAuth.SwitchToPhone": "Prihlásenie telefónom"
   },
   "es": {
     "CustomAuth.Login": "Iniciar sesión",
@@ -641,7 +695,9 @@
     "CustomAuth.Error.UsernameInvalid": "Nombre de usuario no válido",
     "CustomAuth.Error.PhoneInvalid": "Número de teléfono no válido",
     "CustomAuth.Error.PhoneOccupied": "El número de teléfono ya está registrado",
-    "CustomAuth.Error.Generic": "Error de autenticación, inténtalo de nuevo"
+    "CustomAuth.Error.Generic": "Error de autenticación, inténtalo de nuevo",
+    "CustomAuth.SwitchToAccount": "Acceso con cuenta",
+    "CustomAuth.SwitchToPhone": "Acceso con teléfono"
   },
   "sv": {
     "CustomAuth.Login": "Logga in",
@@ -664,7 +720,9 @@
     "CustomAuth.Error.UsernameInvalid": "Ogiltigt användarnamn",
     "CustomAuth.Error.PhoneInvalid": "Ogiltigt telefonnummer",
     "CustomAuth.Error.PhoneOccupied": "Telefonnumret är redan registrerat",
-    "CustomAuth.Error.Generic": "Autentiseringen misslyckades, försök igen"
+    "CustomAuth.Error.Generic": "Autentiseringen misslyckades, försök igen",
+    "CustomAuth.SwitchToAccount": "Kontoinloggning",
+    "CustomAuth.SwitchToPhone": "Telefoninloggning"
   },
   "tr": {
     "CustomAuth.Login": "Giriş Yap",
@@ -687,7 +745,9 @@
     "CustomAuth.Error.UsernameInvalid": "Geçersiz kullanıcı adı",
     "CustomAuth.Error.PhoneInvalid": "Geçersiz telefon numarası",
     "CustomAuth.Error.PhoneOccupied": "Telefon numarası zaten kayıtlı",
-    "CustomAuth.Error.Generic": "Kimlik doğrulama başarısız, tekrar deneyin"
+    "CustomAuth.Error.Generic": "Kimlik doğrulama başarısız, tekrar deneyin",
+    "CustomAuth.SwitchToAccount": "Hesap girişi",
+    "CustomAuth.SwitchToPhone": "Telefon girişi"
   },
   "uk": {
     "CustomAuth.Login": "Увійти",
@@ -710,7 +770,9 @@
     "CustomAuth.Error.UsernameInvalid": "Недійсне ім'я користувача",
     "CustomAuth.Error.PhoneInvalid": "Недійсний номер телефону",
     "CustomAuth.Error.PhoneOccupied": "Номер телефону вже зареєстровано",
-    "CustomAuth.Error.Generic": "Помилка автентифікації, спробуйте ще раз"
+    "CustomAuth.Error.Generic": "Помилка автентифікації, спробуйте ще раз",
+    "CustomAuth.SwitchToAccount": "Вхід за акаунтом",
+    "CustomAuth.SwitchToPhone": "Вхід за телефоном"
   },
   "uz": {
     "CustomAuth.Login": "Kirish",
@@ -733,7 +795,9 @@
     "CustomAuth.Error.UsernameInvalid": "Yaroqsiz foydalanuvchi nomi",
     "CustomAuth.Error.PhoneInvalid": "Yaroqsiz telefon raqami",
     "CustomAuth.Error.PhoneOccupied": "Telefon raqami allaqachon roʻyxatdan oʻtgan",
-    "CustomAuth.Error.Generic": "Autentifikatsiya muvaffaqiyatsiz, qayta urinib koʻring"
+    "CustomAuth.Error.Generic": "Autentifikatsiya muvaffaqiyatsiz, qayta urinib koʻring",
+    "CustomAuth.SwitchToAccount": "Hisob orqali kirish",
+    "CustomAuth.SwitchToPhone": "Telefon orqali kirish"
   },
   "vi": {
     "CustomAuth.Login": "Đăng nhập",
@@ -756,6 +820,8 @@
     "CustomAuth.Error.UsernameInvalid": "Tên người dùng không hợp lệ",
     "CustomAuth.Error.PhoneInvalid": "Số điện thoại không hợp lệ",
     "CustomAuth.Error.PhoneOccupied": "Số điện thoại đã được đăng ký",
-    "CustomAuth.Error.Generic": "Xác thực thất bại, vui lòng thử lại"
+    "CustomAuth.Error.Generic": "Xác thực thất bại, vui lòng thử lại",
+    "CustomAuth.SwitchToAccount": "Đăng nhập tài khoản",
+    "CustomAuth.SwitchToPhone": "Đăng nhập điện thoại"
   }
 }
