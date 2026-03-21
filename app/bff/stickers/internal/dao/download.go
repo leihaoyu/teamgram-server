@@ -16,6 +16,7 @@ import (
 	"github.com/minio/minio-go/v7"
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/pkg/imaging"
+	"github.com/zeromicro/go-zero/core/jsonx"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -197,7 +198,7 @@ func (d *Dao) downloadAndUploadOne(ctx context.Context, input *StickerDownloadIn
 				}
 
 				// Generate PhotoStrippedSize from the thumbnail data
-				// Sticker thumbnails are WebP, use DecodeWebp explicitly
+				// Sticker thumbnails are WebP with alpha channel, use DecodeWebp explicitly
 				thumbImg, decErr := imaging.DecodeWebp(bytes.NewReader(thumbData))
 				if decErr != nil {
 					// Fallback to generic decode for non-WebP thumbnails
@@ -210,8 +211,12 @@ func (d *Dao) downloadAndUploadOne(ctx context.Context, input *StickerDownloadIn
 					} else {
 						resized = imaging.Resize(thumbImg, 0, 40)
 					}
+					// Flatten transparency to white background before JPEG encoding.
+					// WebP sticker thumbnails have alpha; stripped JPEG has no alpha support,
+					// so transparent pixels would render as black/garbled without flattening.
+					flattened := imaging.FlattenToWhite(resized)
 					stripped := &bytes.Buffer{}
-					if encErr := imaging.EncodeStripped(stripped, resized, 30); encErr == nil {
+					if encErr := imaging.EncodeStripped(stripped, flattened, 30); encErr == nil {
 						// Prepend stripped size before the "m" PhotoSize
 						thumbs = append([]*mtproto.PhotoSize{
 							mtproto.MakeTLPhotoStrippedSize(&mtproto.PhotoSize{
@@ -247,6 +252,12 @@ func (d *Dao) downloadAndUploadOne(ctx context.Context, input *StickerDownloadIn
 	log.Infof("downloadAndUploadOne - %s → doc %d (%d bytes) getFile=%v upload=%v total=%v",
 		input.BotFileUniqueId, documentId, fileSize,
 		tGetFile, tUpload, time.Since(start))
+
+	// 7. Register Document in media service's documents + photo_sizes tables
+	//    so that messages.sendMedia → MediaGetDocument can find it.
+	if regErr := d.registerDocumentInMedia(ctx, document); regErr != nil {
+		log.Errorf("downloadAndUploadOne - registerDocumentInMedia failed (non-fatal): %v", regErr)
+	}
 
 	return document, nil
 }
@@ -328,4 +339,86 @@ func (d *Dao) downloadThumbBytes(ctx context.Context, thumbFileId string) ([]byt
 	}
 
 	return data, nil
+}
+
+// registerDocumentInMedia writes a Document record into the media service's `teamgram.documents`
+// table (and `teamgram.photo_sizes` for thumbnails) via cross-database INSERT.
+// This ensures that when a client sends a sticker as a message, `MediaGetDocument(id)` can
+// find the full Document instead of returning documentEmpty.
+func (d *Dao) registerDocumentInMedia(ctx context.Context, doc *mtproto.Document) error {
+	log := logx.WithContext(ctx)
+
+	// Serialize attributes to JSON (same format as media service)
+	var attrJSON string
+	if doc.GetAttributes() != nil {
+		aBuf, err := jsonx.Marshal(doc.GetAttributes())
+		if err != nil {
+			return fmt.Errorf("marshal attributes: %w", err)
+		}
+		attrJSON = string(aBuf)
+	}
+
+	var thumbId int64
+	if len(doc.GetThumbs()) > 0 {
+		thumbId = doc.Id
+	}
+
+	fileSize := doc.Size2_INT64
+	if fileSize == 0 {
+		fileSize = int64(doc.Size2_INT32)
+	}
+
+	// INSERT into teamgram.documents (cross-database)
+	_, err := d.DB.Exec(ctx,
+		"INSERT IGNORE INTO teamgram.documents(document_id, access_hash, dc_id, file_path, file_size, uploaded_file_name, ext, mime_type, thumb_id, video_thumb_id, attributes, date2) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		doc.Id,
+		doc.AccessHash,
+		doc.DcId,
+		fmt.Sprintf("%d.dat", doc.Id),
+		fileSize,
+		"",
+		stickerExtForMime(doc.MimeType),
+		doc.MimeType,
+		thumbId,
+		0,
+		attrJSON,
+		int64(doc.Date),
+	)
+	if err != nil {
+		return fmt.Errorf("insert documents: %w", err)
+	}
+
+	// INSERT photo_sizes for thumbnails
+	for _, sz := range doc.GetThumbs() {
+		var (
+			cachedType  int32
+			cachedBytes string
+		)
+		switch sz.GetPredicateName() {
+		case mtproto.Predicate_photoStrippedSize:
+			cachedType = 1 // CachedTypeStrippedSize
+			cachedBytes = base64.RawStdEncoding.EncodeToString(sz.Bytes)
+		case mtproto.Predicate_photoSize:
+			cachedType = 4 // CachedTypeSize
+		default:
+			continue
+		}
+
+		_, err = d.DB.Exec(ctx,
+			"INSERT IGNORE INTO teamgram.photo_sizes(photo_size_id, size_type, width, height, file_size, file_path, cached_type, cached_bytes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+			doc.Id,
+			sz.Type,
+			sz.W,
+			sz.H,
+			sz.Size2,
+			fmt.Sprintf("%s/%d.dat", sz.Type, doc.Id),
+			cachedType,
+			cachedBytes,
+		)
+		if err != nil {
+			log.Errorf("registerDocumentInMedia - insert photo_sizes type=%s error: %v", sz.Type, err)
+		}
+	}
+
+	return nil
 }
