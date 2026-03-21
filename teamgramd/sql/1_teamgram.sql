@@ -1346,6 +1346,29 @@ ALTER TABLE `user_passwords`
 --
 ALTER TABLE `video_sizes`
   MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+
+-- --------------------------------------------------------
+
+--
+-- 表的结构 `auto_groups`
+-- 自动群组追踪表：注册时自动建群/加群
+--
+
+CREATE TABLE `auto_groups` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `group_type` tinyint(4) NOT NULL COMMENT '1=总群, 2=地区群',
+  `group_key` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '总群为空, 地区群为城市名',
+  `sequence_num` int(11) NOT NULL DEFAULT '1' COMMENT '群序号 (总群1, 总群2...)',
+  `chat_id` bigint(20) NOT NULL COMMENT '对应 chats 表的 id',
+  `creator_user_id` bigint(20) NOT NULL COMMENT '群主 user_id',
+  `participant_count` int(11) NOT NULL DEFAULT '1' COMMENT '真实用户数（不含系统管理员）',
+  `is_full` tinyint(1) NOT NULL DEFAULT '0' COMMENT '0=活跃, 1=已满',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_chat_id` (`chat_id`),
+  KEY `idx_type_key_full` (`group_type`, `group_key`, `is_full`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
@@ -1400,41 +1423,3 @@ CREATE TABLE IF NOT EXISTS `sticker_set_documents` (
   UNIQUE KEY `idx_document_id` (`document_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
--- --------------------------------------------------------
-
---
--- 表的结构 `user_passwords`
---
-
-CREATE TABLE `user_passwords` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `user_id` bigint(20) NOT NULL COMMENT '用户ID',
-  `password_hash` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL COMMENT '密码哈希（bcrypt）',
-  `deleted` tinyint(1) NOT NULL DEFAULT '0',
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_user_id` (`user_id`, `deleted`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- --------------------------------------------------------
-
---
--- 表的结构 `auto_groups`
--- 自动群组追踪表：注册时自动建群/加群
---
-
-CREATE TABLE `auto_groups` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `group_type` tinyint(4) NOT NULL COMMENT '1=总群, 2=地区群',
-  `group_key` varchar(128) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '' COMMENT '总群为空, 地区群为城市名',
-  `sequence_num` int(11) NOT NULL DEFAULT '1' COMMENT '群序号 (总群1, 总群2...)',
-  `chat_id` bigint(20) NOT NULL COMMENT '对应 chats 表的 id',
-  `creator_user_id` bigint(20) NOT NULL COMMENT '群主 user_id',
-  `participant_count` int(11) NOT NULL DEFAULT '1' COMMENT '真实用户数（不含系统管理员）',
-  `is_full` tinyint(1) NOT NULL DEFAULT '0' COMMENT '0=活跃, 1=已满',
-  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_chat_id` (`chat_id`),
-  KEY `idx_type_key_full` (`group_type`, `group_key`, `is_full`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
