@@ -72,6 +72,11 @@ SyncClient:
 TelegramBotToken: "8784954709:AAF-N47mj6N_UKn3NbJ2HgPWmryOyFjsJI4"
 StickersMysql:
   DSN: root:@tcp(127.0.0.1:3306)/teamgram_stickers?charset=utf8mb4&parseTime=true
+StickersMinio:
+  Endpoint: localhost:9000
+  AccessKeyID: minio
+  SecretAccessKey: miniostorage
+  UseSSL: false
 
 FeaturedStickerSets:
   - "UtyaDuck"

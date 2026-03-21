@@ -1,9 +1,11 @@
 package dao
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"fmt"
+	"math/rand"
 	"path"
 	"runtime"
 	"runtime/debug"
@@ -11,14 +13,15 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	"github.com/minio/minio-go/v7"
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/service/media/media"
+	"github.com/teamgram/teamgram-server/pkg/imaging"
 
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
 const (
-	downloadWorkers = 1  // sequential download to minimize memory
+	downloadWorkers = 5  // concurrent downloads per batch
 	downloadBatch   = 10 // process stickers in small batches to limit memory
 )
 
@@ -34,7 +37,7 @@ type StickerDownloadInput struct {
 }
 
 // DownloadAndUploadStickerFiles downloads sticker files from Telegram Bot API and uploads them
-// to DFS (MinIO) synchronously. Returns DFS-backed Documents in the same order as inputs.
+// to MinIO directly via streaming. Returns Documents in the same order as inputs.
 // If any file fails, returns an error (caller should not cache partial results).
 // For large sets, processes in batches to limit peak memory usage.
 func (d *Dao) DownloadAndUploadStickerFiles(ctx context.Context, inputs []StickerDownloadInput) ([]*mtproto.Document, error) {
@@ -121,77 +124,170 @@ func (d *Dao) DownloadAndUploadStickerFiles(ctx context.Context, inputs []Sticke
 	return results, nil
 }
 
-// downloadAndUploadOne downloads a single sticker file from Bot API and uploads it via media service.
-// Uses direct mode: file bytes are passed inline via gRPC, bypassing SSDB entirely.
+// downloadAndUploadOne downloads a single sticker file from Bot API and streams it directly
+// to MinIO, bypassing the Media→DFS gRPC chain entirely. This avoids multiple in-memory
+// copies of the file data.
 func (d *Dao) downloadAndUploadOne(ctx context.Context, input *StickerDownloadInput) (*mtproto.Document, error) {
 	log := logx.WithContext(ctx)
 	start := time.Now()
 
-	// 1. Get file path from Bot API
+	// 1. Generate document ID
+	documentId := d.IDGenClient2.NextId(ctx)
+
+	// 2. Compute access hash (same formula as DFS handler)
+	ext := path.Ext(input.BotFileUniqueId + stickerExtForMime(input.MimeType))
+	if ext == "" {
+		ext = ".dat"
+	}
+	extType := getStorageFileTypeConstructor(ext)
+	accessHash := int64(extType)<<32 | int64(rand.Uint32())
+
+	// 3. Get file path from Bot API
 	fileInfo, err := d.BotAPI.GetFile(ctx, input.BotFileId)
 	if err != nil {
 		return nil, fmt.Errorf("GetFile: %w", err)
 	}
 	tGetFile := time.Since(start)
 
-	// 2. Download the file bytes
-	data, err := d.BotAPI.DownloadFile(ctx, fileInfo.FilePath)
+	// 4. Stream download directly to MinIO (zero-copy, no []byte buffer)
+	body, contentLength, err := d.BotAPI.DownloadFileStream(ctx, fileInfo.FilePath)
 	if err != nil {
-		return nil, fmt.Errorf("DownloadFile: %w", err)
+		return nil, fmt.Errorf("DownloadFileStream: %w", err)
 	}
-	tDownload := time.Since(start)
-	dataSize := len(data)
+	defer body.Close()
 
-	// 3. Build InputMedia with file name (for extension detection)
-	ext := path.Ext(fileInfo.FilePath)
-	if ext == "" {
-		ext = ".dat"
+	minioPath := fmt.Sprintf("%d.dat", documentId)
+	uploadInfo, err := d.MinIO.Client.PutObject(
+		ctx,
+		"documents",
+		minioPath,
+		body,
+		contentLength, // pass content length if known (-1 if unknown)
+		minio.PutObjectOptions{ContentType: input.MimeType},
+	)
+	if err != nil {
+		return nil, fmt.Errorf("MinIO PutObject: %w", err)
 	}
+	tUpload := time.Since(start)
+	fileSize := uploadInfo.Size
 
-	inputMedia := mtproto.MakeTLInputMediaUploadedDocument(&mtproto.InputMedia{
-		File: mtproto.MakeTLInputFile(&mtproto.InputFile{
-			Name: input.BotFileUniqueId + ext,
-		}).To_InputFile(),
-		MimeType:   input.MimeType,
-		Attributes: input.Attributes,
-	}).To_InputMedia()
-
-	// 4. Download thumbnail if available
-	var thumbData []byte
+	// 5. Handle thumbnail (small enough to buffer in memory)
+	var thumbs []*mtproto.PhotoSize
 	if input.ThumbFileId != "" {
-		thumbData, err = d.downloadThumbBytes(ctx, input.ThumbFileId)
-		if err != nil {
-			log.Infof("downloadAndUploadOne - thumb download failed (non-fatal): %v", err)
-			thumbData = nil
+		thumbData, thumbErr := d.downloadThumbBytes(ctx, input.ThumbFileId)
+		if thumbErr == nil && len(thumbData) > 0 {
+			// Store thumbnail to MinIO photos bucket
+			thumbPath := fmt.Sprintf("m/%d.dat", documentId)
+			_, thumbErr = d.MinIO.Client.PutObject(
+				ctx,
+				"photos",
+				thumbPath,
+				bytes.NewReader(thumbData),
+				int64(len(thumbData)),
+				minio.PutObjectOptions{ContentType: "image/webp"},
+			)
+			if thumbErr == nil {
+				thumbs = []*mtproto.PhotoSize{
+					mtproto.MakeTLPhotoSize(&mtproto.PhotoSize{
+						Type:  "m",
+						W:     input.ThumbWidth,
+						H:     input.ThumbHeight,
+						Size2: int32(len(thumbData)),
+					}).To_PhotoSize(),
+				}
+
+				// Generate PhotoStrippedSize from the thumbnail data
+				// Sticker thumbnails are WebP, use DecodeWebp explicitly
+				thumbImg, decErr := imaging.DecodeWebp(bytes.NewReader(thumbData))
+				if decErr != nil {
+					// Fallback to generic decode for non-WebP thumbnails
+					thumbImg, decErr = imaging.Decode(bytes.NewReader(thumbData))
+				}
+				if decErr == nil {
+					var resized = thumbImg
+					if thumbImg.Bounds().Dx() >= thumbImg.Bounds().Dy() {
+						resized = imaging.Resize(thumbImg, 40, 0)
+					} else {
+						resized = imaging.Resize(thumbImg, 0, 40)
+					}
+					stripped := &bytes.Buffer{}
+					if encErr := imaging.EncodeStripped(stripped, resized, 30); encErr == nil {
+						// Prepend stripped size before the "m" PhotoSize
+						thumbs = append([]*mtproto.PhotoSize{
+							mtproto.MakeTLPhotoStrippedSize(&mtproto.PhotoSize{
+								Type:  "i",
+								Bytes: stripped.Bytes(),
+							}).To_PhotoSize(),
+						}, thumbs...)
+					}
+				}
+			} else {
+				log.Infof("downloadAndUploadOne - thumb upload failed (non-fatal): %v", thumbErr)
+			}
+		} else if thumbErr != nil {
+			log.Infof("downloadAndUploadOne - thumb download failed (non-fatal): %v", thumbErr)
 		}
 	}
 
-	// 5. Upload via media service with inline file data (no SSDB)
-	messageMedia, err := d.MediaClient.MediaUploadedDocumentMedia(ctx, &media.TLMediaUploadedDocumentMedia{
-		OwnerId:   0,
-		Media:     inputMedia,
-		FileData:  data,
-		ThumbData: thumbData,
-	})
+	// 6. Build Document proto (same structure as DFS handler)
+	document := mtproto.MakeTLDocument(&mtproto.Document{
+		Id:            documentId,
+		AccessHash:    accessHash,
+		FileReference: []byte{},
+		Date:          int32(time.Now().Unix()),
+		MimeType:      input.MimeType,
+		Size2_INT32:   int32(fileSize),
+		Size2_INT64:   fileSize,
+		Thumbs:        thumbs,
+		VideoThumbs:   nil,
+		DcId:          1,
+		Attributes:    input.Attributes,
+	}).To_Document()
 
-	// Release data early
-	data = nil
-	thumbData = nil
+	log.Infof("downloadAndUploadOne - %s → doc %d (%d bytes) getFile=%v upload=%v total=%v",
+		input.BotFileUniqueId, documentId, fileSize,
+		tGetFile, tUpload, time.Since(start))
 
-	if err != nil {
-		return nil, fmt.Errorf("MediaUploadedDocumentMedia: %w", err)
+	return document, nil
+}
+
+// stickerExtForMime returns the file extension for a sticker MIME type.
+func stickerExtForMime(mimeType string) string {
+	switch mimeType {
+	case "application/x-tgsticker":
+		return ".tgs"
+	case "video/webm":
+		return ".webm"
+	default:
+		return ".webp"
 	}
+}
 
-	dfsDoc := messageMedia.GetDocument()
-	if dfsDoc == nil {
-		return nil, fmt.Errorf("MediaUploadedDocumentMedia returned nil document")
+// getStorageFileTypeConstructor returns the TL constructor for a file extension.
+// Matches the logic in dfs/internal/model/image_util.go.
+func getStorageFileTypeConstructor(ext string) int32 {
+	switch ext {
+	case ".jpeg", ".jpg":
+		return int32(mtproto.CRC32_storage_fileJpeg)
+	case ".gif":
+		return int32(mtproto.CRC32_storage_fileGif)
+	case ".png":
+		return int32(mtproto.CRC32_storage_filePng)
+	case ".pdf":
+		return int32(mtproto.CRC32_storage_filePdf)
+	case ".mp3":
+		return int32(mtproto.CRC32_storage_fileMp3)
+	case ".mov":
+		return int32(mtproto.CRC32_storage_fileMov)
+	case ".mp4":
+		return int32(mtproto.CRC32_storage_fileMp4)
+	case ".webp":
+		return int32(mtproto.CRC32_storage_fileWebp)
+	case ".webm":
+		return int32(mtproto.CRC32_storage_fileMp4)
+	default:
+		return int32(mtproto.CRC32_storage_filePartial)
 	}
-
-	log.Infof("downloadAndUploadOne - %s → doc %d (%d bytes) getFile=%v download=%v total=%v",
-		input.BotFileUniqueId, dfsDoc.GetId(), dataSize,
-		tGetFile, tDownload, time.Since(start))
-
-	return dfsDoc, nil
 }
 
 // SerializeStickerDoc serializes a Document protobuf to base64 string for DB storage.
@@ -221,7 +317,7 @@ func (d *Dao) downloadThumbBytes(ctx context.Context, thumbFileId string) ([]byt
 		return nil, fmt.Errorf("GetFile(thumb): %w", err)
 	}
 
-	// 2. Download the thumb bytes
+	// 2. Download the thumb bytes (small, ok to buffer)
 	data, err := d.BotAPI.DownloadFile(ctx, fileInfo.FilePath)
 	if err != nil {
 		return nil, fmt.Errorf("DownloadFile(thumb): %w", err)

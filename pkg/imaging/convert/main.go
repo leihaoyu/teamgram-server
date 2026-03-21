@@ -27,7 +27,7 @@ import (
 
 	"github.com/minio/minio-go/v7"
 
-	"github.com/teamgram/teamgram-server/app/service/dfs/internal/imaging"
+	"github.com/teamgram/teamgram-server/pkg/imaging"
 )
 
 var imageFile = flag.String("image", "", "convert image file")

@@ -1,6 +1,6 @@
 # Stickers 代理模块 (`app/bff/stickers`)
 
-> 通过 Telegram Bot API 代理获取官方贴纸包数据，同步下载贴纸文件到 DFS 存储，缓存到本地数据库。
+> 通过 Telegram Bot API 代理获取官方贴纸包数据，流式下载贴纸文件直接写入 MinIO 存储，缓存到本地数据库。
 
 ---
 
@@ -10,16 +10,16 @@
 
 1. **查本地缓存** — 在 `teamgram_stickers` 数据库中查找该贴纸集
 2. **缓存命中** — 从 `sticker_sets` + `sticker_set_documents` 表反序列化 Document protobuf，直接返回
-3. **缓存未命中** — 通过 Telegram Bot API 获取元数据，**同步下载所有贴纸文件到 DFS（MinIO）**，写入数据库，返回给客户端
+3. **缓存未命中** — 通过 Telegram Bot API 获取元数据，**流式下载所有贴纸文件直接写入 MinIO**，写入数据库，返回给客户端
 
 ```
 客户端 → BFF(gRPC) → StickersCore
                          ├─ 命中 → MySQL(sticker_sets + sticker_set_documents) → 返回
                          └─ 未命中 → Bot API getStickerSet
-                                        → 并发下载所有文件 (3 workers)
-                                        → DFS 上传 (MinIO)
+                                        → 并发下载所有文件 (5 workers, 10 per batch)
+                                        → HTTP 流式直接写入 MinIO (跳过 DFS gRPC)
                                         → 写入 MySQL
-                                        → 返回 (DFS 真实 docId)
+                                        → 返回 (本地生成的 docId)
 ```
 
 ---
@@ -37,10 +37,10 @@ app/bff/stickers/
     │   ├── core.go                              # StickersCore 基础结构
     │   └── messages.getStickerSet_handler.go     # 核心业务逻辑
     ├── dao/
-    │   ├── dao.go                               # Dao 聚合 (MySQL + IDGen + Media + DFS + BotAPI)
+    │   ├── dao.go                               # Dao 聚合 (MySQL + IDGen + Media + MinIO + BotAPI)
     │   ├── mysql.go                             # MySQL wrapper
-    │   ├── botapi.go                            # Telegram Bot API HTTP 客户端
-    │   └── download.go                          # 同步文件下载+DFS上传管线
+    │   ├── botapi.go                            # Telegram Bot API HTTP 客户端 (连接池，流式下载)
+    │   └── download.go                          # 流式文件下载 → MinIO 直接上传管线
     ├── dal/
     │   ├── dataobject/
     │   │   ├── sticker_sets_do.go               # sticker_sets 表数据对象
@@ -102,7 +102,14 @@ app/bff/stickers/
 TelegramBotToken: "你的Bot Token"
 StickersMysql:
   DSN: root:password@tcp(127.0.0.1:3306)/teamgram_stickers?charset=utf8mb4&parseTime=true
+StickersMinio:
+  Endpoint: localhost:9000
+  AccessKeyID: minio
+  SecretAccessKey: miniostorage
+  UseSSL: false
 ```
+
+> **注意**：`StickersMinio` 的凭据应与 DFS 服务的 MinIO 配置一致（共用同一个 MinIO 实例）。Docker 部署时 Endpoint 使用容器名 `minio:9000`。
 
 ### BFF 注册逻辑
 
@@ -113,6 +120,12 @@ if c.TelegramBotToken != "" {
     mtproto.RegisterRPCStickersServer(grpcServer, stickers_helper.New(stickers_helper.Config{
         TelegramBotToken: c.TelegramBotToken,
         Mysql:            c.StickersMysql,
+        Minio: stickers_helper.MinioConfig{
+            Endpoint:       c.StickersMinio.Endpoint,
+            AccessKeyID:    c.StickersMinio.AccessKeyID,
+            SecretAccessKey: c.StickersMinio.SecretAccessKey,
+            UseSSL:         c.StickersMinio.UseSSL,
+        },
         IdgenClient:      c.IdgenClient,
         MediaClient:      c.MediaClient,
         DfsClient:        c.DfsClient,
@@ -130,37 +143,39 @@ if c.TelegramBotToken != "" {
 
 | 服务 | 用途 |
 |------|------|
-| IDGen | `NextId()` 生成 sticker set ID 和临时文件 ID |
-| DFS | `DfsWriteFilePartData()` 写入临时分片 + `DfsUploadDocumentFileV2()` 最终写入 MinIO |
+| IDGen | `NextId()` 生成 sticker set ID 和 document ID |
+| MinIO | 贴纸文件直接流式写入 `documents` 桶，缩略图写入 `photos` 桶 |
 | Media | 预留（当前缓存方案不依赖 media 的 documents 表） |
+| DFS | 客户端下载文件时仍通过 DFS 读取 MinIO（`upload.getFile`） |
 
 ---
 
 ## 核心流程详解
 
-### 1. 首次获取 (fetchAndCacheStickerSet) — 同步下载
+### 1. 首次获取 (fetchAndCacheStickerSet) — 流式下载
 
 ```
 Bot API getStickerSet?name=xxx
         │
         ▼
-为每个 sticker 构建 StickerDownloadInput (mime, attributes)
+为每个 sticker 构建 StickerDownloadInput (mime, attributes, thumbFileId)
         │
         ▼
-DownloadAndUploadStickerFiles (并发 3 workers):
+DownloadAndUploadStickerFiles (并发 5 workers, 10 per batch):
   ├─ Bot API getFile → file_path
-  ├─ Bot API /file/bot{token}/{path} → []byte
-  ├─ DFS.WriteFilePartData (512KB 分片，写入 SSDB 临时)
-  └─ DFS.UploadDocumentFileV2 → *Document (DFS 分配真实 docId，写入 MinIO)
+  ├─ Bot API DownloadFileStream → io.ReadCloser (HTTP resp.Body)
+  ├─ MinIO PutObject(documents/{docId}.dat, resp.Body) — 流式零拷贝
+  ├─ 缩略图: Bot API DownloadFile(thumb) → MinIO PutObject(photos/m/{docId}.dat)
+  └─ 缩略图处理: DecodeWebp → Resize(40px) → EncodeStripped → PhotoStrippedSize
         │
         ▼
-用 DFS 返回的 Document 构建 stickerDocDOs
+BFF 本地构建 Document protobuf (IDGen 生成 docId，本地计算 accessHash)
         │
         ▼
 INSERT IGNORE sticker_sets + sticker_set_documents
         │
         ▼
-返回 Messages_StickerSet 给客户端（docId 即 MinIO 中的真实文件）
+返回 Messages_StickerSet 给客户端（docId 对应 MinIO 中的真实文件）
 ```
 
 ### 2. 缓存命中 (buildStickerSetFromCache)
@@ -216,8 +231,10 @@ ALTER TABLE teamgram_stickers.sticker_set_documents
 ## 注意事项
 
 1. **Bot Token 安全**: Token 配置在 `bff.yaml` 中，不要提交到公开仓库
-2. **ID 体系独立**: 本地 `set_id` 由 IDGen 生成；`document_id` 由 DFS 服务内部 IDGen 生成，与 Telegram 官方 ID 无关
+2. **ID 体系独立**: 本地 `set_id` 和 `document_id` 均由 IDGen 生成（BFF 直接调用），与 Telegram 官方 ID 无关
 3. **不写 media 的 documents 表**: Document 序列化后直接存在 `sticker_set_documents.document_data`，不依赖 media 服务持久化
-4. **首次请求较慢**: 因为需要同步下载所有贴纸文件，首次请求耗时可能较长（取决于贴纸数量和网络），但贴纸图片可立即显示
+4. **首次请求较慢**: 因为需要流式下载所有贴纸文件（HTTP → MinIO），首次请求耗时取决于贴纸数量和网络，但已优化为 5 并发 + 流式传输
 5. **贴纸集不会自动刷新**: 一旦缓存了某个贴纸集，后续请求始终返回缓存数据。如需刷新，需手动删除 `sticker_sets` 中对应的行
-6. **并发安全**: 多个客户端同时请求同一个未缓存的贴纸集时，使用 `INSERT IGNORE` + `rowsAffected==0` 回退机制，只有一个请求会完成下载，其余读取已缓存数据
+6. **并发安全**: 多个客户端同时请求同一个未缓存的贴纸集时，使用 `StickerSetFlight` singleflight + `INSERT IGNORE` 机制，只有一个请求会完成下载
+7. **内存优化**: 流式下载直接写入 MinIO（跳过 DFS gRPC 链路），避免文件数据在内存中多次拷贝。每批 10 个贴纸处理完后触发 GC 回收内存
+8. **缩略图**: 使用 `pkg/imaging` 包（共享包）解码 WebP 缩略图，生成 PhotoStrippedSize（40px stripped JPEG）内联到 Document protobuf

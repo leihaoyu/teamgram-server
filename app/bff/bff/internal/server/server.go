@@ -322,9 +322,15 @@ func (s *Server) Initialize() error {
 					TelegramBotToken:    c.TelegramBotToken,
 					FeaturedStickerSets: c.FeaturedStickerSets,
 					Mysql:               c.StickersMysql,
-					IdgenClient:         c.IdgenClient,
-					MediaClient:         c.MediaClient,
-					DfsClient:           c.DfsClient,
+					Minio: stickers_helper.MinioConfig{
+						Endpoint:        c.StickersMinio.Endpoint,
+						AccessKeyID:     c.StickersMinio.AccessKeyID,
+						SecretAccessKey: c.StickersMinio.SecretAccessKey,
+						UseSSL:          c.StickersMinio.UseSSL,
+					},
+					IdgenClient: c.IdgenClient,
+					MediaClient: c.MediaClient,
+					DfsClient:   c.DfsClient,
 				}))
 		}
 

@@ -26,6 +26,13 @@ import (
 	"github.com/zeromicro/go-zero/zrpc"
 )
 
+type MinioConfig struct {
+	Endpoint        string
+	AccessKeyID     string
+	SecretAccessKey string
+	UseSSL          bool
+}
+
 type Config struct {
 	zrpc.RpcServerConf
 	KV                        kv.KvConf
@@ -42,5 +49,6 @@ type Config struct {
 	SignInMessage             []conf.MessageEntityConfig `json:",optional"`
 	TelegramBotToken          string                     `json:",optional"`
 	StickersMysql             sqlx.Config                `json:",optional"`
+	StickersMinio             MinioConfig                `json:",optional"`
 	FeaturedStickerSets       []string                   `json:",optional"`
 }

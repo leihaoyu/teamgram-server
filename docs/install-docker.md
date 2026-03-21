@@ -225,6 +225,7 @@ localhost:6379
 127.0.0.1:9000
 localhost:9000
 =>minio:9000
+（包括 bff.yaml 中的 StickersMinio.Endpoint）
 ```
 
 ### 例如 authsession.yaml
@@ -253,6 +254,33 @@ Cache:
   KV:
 - Host: redis:6379
 ```
+
+### 例如 bff.yaml（贴纸流式下载配置）
+
+bff.yaml 中新增了贴纸相关配置。Stickers 模块通过 Telegram Bot API 下载贴纸文件，并直接流式上传到 MinIO，跳过 DFS gRPC 链路以减少内存占用。
+
+```
+# Telegram Bot Token（用于通过 Bot API 下载贴纸文件）
+TelegramBotToken: "YOUR_BOT_TOKEN"
+
+# 贴纸数据库独立 MySQL
+StickersMysql:
+  DSN: root:@tcp(mysql:3306)/teamgram_stickers?charset=utf8mb4&parseTime=true
+
+# 贴纸直接写入 MinIO（与 DFS 使用相同的 MinIO 实例）
+StickersMinio:
+  Endpoint: minio:9000
+  AccessKeyID: minio
+  SecretAccessKey: miniostorage
+  UseSSL: false
+
+# 精选贴纸集（首页推荐展示）
+FeaturedStickerSets:
+  - "UtyaDuck"
+  - "Animals"
+```
+
+> **注意**：`StickersMinio` 的 Endpoint/AccessKeyID/SecretAccessKey 应与 DFS 服务的 MinIO 配置保持一致（共用同一个 MinIO 实例）。Docker 部署时 Endpoint 使用容器名 `minio:9000`，主机部署时使用 `localhost:9000`。
 
 ## 5、teamgram在主机部署
 ```

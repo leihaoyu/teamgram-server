@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"time"
@@ -12,17 +13,40 @@ import (
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
+const (
+	// maxFileDownloadSize caps file downloads to prevent unbounded memory allocation.
+	maxFileDownloadSize = 10 * 1024 * 1024 // 10 MB
+)
+
 // BotAPIClient is a lightweight HTTP client for Telegram Bot API
 type BotAPIClient struct {
-	token  string
-	client *http.Client
+	token      string
+	apiClient  *http.Client // for API calls (getFile, getStickerSet)
+	fileClient *http.Client // for file downloads (longer timeout)
 }
 
 func NewBotAPIClient(token string) *BotAPIClient {
+	// Shared transport with connection pooling for concurrent downloads
+	transport := &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:        50,
+		MaxIdleConnsPerHost: 20,
+		IdleConnTimeout:     90 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
+	}
+
 	return &BotAPIClient{
 		token: token,
-		client: &http.Client{
-			Timeout: 30 * time.Second,
+		apiClient: &http.Client{
+			Timeout:   30 * time.Second,
+			Transport: transport,
+		},
+		fileClient: &http.Client{
+			Timeout:   120 * time.Second, // file downloads need more time
+			Transport: transport,
 		},
 	}
 }
@@ -89,11 +113,14 @@ func (b *BotAPIClient) GetStickerSet(ctx context.Context, name string) (*BotAPIS
 		return nil, fmt.Errorf("botapi: create request error: %w", err)
 	}
 
-	resp, err := b.client.Do(req)
+	resp, err := b.apiClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("botapi: getStickerSet request error: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		io.Copy(io.Discard, resp.Body) // drain to allow connection reuse
+		resp.Body.Close()
+	}()
 
 	var result BotAPIStickerSetResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -118,11 +145,14 @@ func (b *BotAPIClient) GetFile(ctx context.Context, fileId string) (*BotAPIFile,
 		return nil, fmt.Errorf("botapi: create request error: %w", err)
 	}
 
-	resp, err := b.client.Do(req)
+	resp, err := b.apiClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("botapi: getFile request error: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 
 	var result BotAPIFileResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
@@ -136,7 +166,8 @@ func (b *BotAPIClient) GetFile(ctx context.Context, fileId string) (*BotAPIFile,
 	return result.Result, nil
 }
 
-// DownloadFile downloads a file from the Bot API file server
+// DownloadFile downloads a file from the Bot API file server.
+// Caps download at maxFileDownloadSize to prevent unbounded memory allocation.
 func (b *BotAPIClient) DownloadFile(ctx context.Context, filePath string) ([]byte, error) {
 	fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", b.token, filePath)
 
@@ -145,20 +176,51 @@ func (b *BotAPIClient) DownloadFile(ctx context.Context, filePath string) ([]byt
 		return nil, fmt.Errorf("botapi: create download request error: %w", err)
 	}
 
-	resp, err := b.client.Do(req)
+	resp, err := b.fileClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("botapi: download file error: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		io.Copy(io.Discard, resp.Body) // drain to allow connection reuse
 		return nil, fmt.Errorf("botapi: download file returned status %d", resp.StatusCode)
 	}
 
-	data, err := io.ReadAll(resp.Body)
+	// Use LimitReader to prevent unbounded memory allocation
+	limited := io.LimitReader(resp.Body, maxFileDownloadSize+1)
+	data, err := io.ReadAll(limited)
 	if err != nil {
 		return nil, fmt.Errorf("botapi: read file body error: %w", err)
 	}
+	if len(data) > maxFileDownloadSize {
+		return nil, fmt.Errorf("botapi: file too large (>%d bytes)", maxFileDownloadSize)
+	}
 
 	return data, nil
+}
+
+// DownloadFileStream opens a streaming download from the Bot API file server.
+// Returns the response body as io.ReadCloser — caller MUST close it.
+// Also returns content length (-1 if unknown).
+func (b *BotAPIClient) DownloadFileStream(ctx context.Context, filePath string) (io.ReadCloser, int64, error) {
+	fileURL := fmt.Sprintf("https://api.telegram.org/file/bot%s/%s", b.token, filePath)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fileURL, nil)
+	if err != nil {
+		return nil, 0, fmt.Errorf("botapi: create download request error: %w", err)
+	}
+
+	resp, err := b.fileClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("botapi: download file error: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+		return nil, 0, fmt.Errorf("botapi: download file returned status %d", resp.StatusCode)
+	}
+
+	return resp.Body, resp.ContentLength, nil
 }

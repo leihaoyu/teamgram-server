@@ -11,7 +11,7 @@
 
 | # | 方法 | 功能 | 备注 |
 |---|------|------|------|
-| 1 | `messages.getStickerSet` | 获取贴纸集详情 | Bot API 代理下载 + MySQL 缓存 |
+| 1 | `messages.getStickerSet` | 获取贴纸集详情 | Bot API 代理 + 流式直传 MinIO + MySQL 缓存 |
 | 2 | `messages.getAllStickers` | 获取用户已安装的所有贴纸集 | Telegram hash 支持 NotModified |
 | 3 | `messages.installStickerSet` | 安装贴纸集 | IncrementOrderNum + InsertOrUpdate |
 | 4 | `messages.uninstallStickerSet` | 卸载贴纸集 | 软删除 |

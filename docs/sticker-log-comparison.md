@@ -134,22 +134,20 @@ thumbs: [
 |---|--------|------|
 | 1 | `getStickerSet` 支持 5 种系统内置 predicate | `messages.getStickerSet_handler.go` |
 | 2 | `getStickerSet` 安装后返回 `InstalledDate` | `messages.getStickerSet_handler.go`, `user_installed_sticker_sets_dao.go` |
-| 3 | Document 缩略图 (thumbs) — 通过 Bot API thumbnail 下载 | `download.go` (BFF), `dfs.uploadDocumentFileV2_handler.go` (DFS) |
+| 3 | Document 缩略图 (thumbs) — 通过 Bot API thumbnail 下载 | `download.go` (BFF 流式直传 MinIO) |
 | 4 | StickerSet.ThumbDocumentId 设为第一个 document ID | `messages.getStickerSet_handler.go` |
 | 5 | StickerSet.hash 非零 + getStickerSet NotModified 支持 | `messages.getStickerSet_handler.go` |
 | 6 | METHOD_NOT_IMPL 20+ 个 API 返回空列表替代报错 | `fake_rpc_result.go` |
 | 7 | `help.saveAppLog` 返回 boolTrue 替代 METHOD_NOT_IMPL | `fake_rpc_result.go` |
 | 8 | Greeting sticker: `messages.getStickers(👋⭐️)` 返回真实 sticker | `messages.getStickers_handler.go`, `sticker_set_documents_dao.go` |
 
-**缩略图实现流程**:
+**缩略图实现流程（当前 — 流式直传）**:
 ```
 Bot API sticker.thumbnail.file_id
-  → BFF: downloadAndUploadThumb → SSDB (DfsWriteFilePartData)
-  → Media: MediaUploadedDocumentMedia (with InputMedia.Thumb)
-  → DFS: DfsUploadDocumentFileV2 reads Thumb from SSDB
-  → DFS: imaging.Decode(webp) → photoStrippedSize + photoSize(128x128 JPEG)
-  → MinIO: photos/m/{docId}.dat
-  → Document.Thumbs = [photoStrippedSize, photoSize]
+  → BFF: downloadThumbBytes → []byte (小文件，内存缓冲)
+  → BFF: MinIO PutObject(photos/m/{docId}.dat, thumbData)
+  → BFF: imaging.DecodeWebp(thumbData) → Resize(40px) → EncodeStripped
+  → Document.Thumbs = [photoStrippedSize("i"), photoSize("m")]
   → serialize to DB (document_data)
 ```
 

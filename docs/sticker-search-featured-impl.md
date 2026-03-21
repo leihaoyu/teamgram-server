@@ -27,8 +27,8 @@ stickers_service_impl.go → core.New() → handler
 ```
 
 **关键点：Bot API file_id 不会暴露给客户端。**
-所有贴纸文件经过 `DownloadAndUploadStickerFiles` 下载到 DFS 后，
-`document_data` 存储的是序列化的 DFS Document protobuf（包含内部 document_id、access_hash）。
+所有贴纸文件经过 `DownloadAndUploadStickerFiles` 流式下载直接写入 MinIO 后，
+`document_data` 存储的是 BFF 本地构建的 Document protobuf（包含 IDGen 生成的 document_id、本地计算的 access_hash）。
 查询时直接反序列化返回，文件 ID 始终一致。
 
 ---
@@ -195,12 +195,13 @@ FeaturedStickerSets:
 | 阶段 | ID 类型 | 说明 |
 |------|---------|------|
 | Bot API 返回 | Bot file_id | 仅用于下载，存到 `bot_file_id` 列备查 |
-| DFS 上传后 | 内部 document_id | `MediaUploadedDocumentMedia` 生成，写入 documents 表 |
-| DB 存储 | document_data (protobuf) | 序列化的 DFS Document，包含内部 ID |
-| 客户端获取 | 反序列化 document_data | **始终返回内部 DFS ID**，与其他接口一致 |
+| BFF 上传后 | 内部 document_id | IDGen `NextId()` 生成，BFF 本地构建 Document |
+| MinIO 存储 | {documentId}.dat | `documents` 桶中的文件路径 |
+| DB 存储 | document_data (protobuf) | 序列化的 Document，包含内部 ID |
+| 客户端获取 | 反序列化 document_data | **始终返回内部 ID**，与其他接口一致 |
 
 ```
-Bot API file_id ──→ 下载文件 ──→ DFS 上传 ──→ 内部 document_id
+Bot API file_id ──→ 流式下载 ──→ MinIO 直接写入 ──→ 内部 document_id (IDGen)
                                                      ↓
                                             proto.Marshal → base64
                                                      ↓
@@ -220,8 +221,8 @@ Bot API file_id ──→ 下载文件 ──→ DFS 上传 ──→ 内部 doc
 
 | 情况 | 风险 | 处理 |
 |------|------|------|
-| 同一贴纸集被多个请求并发获取 | 无 | `INSERT IGNORE` + `rowsAffected==0` 回退到已缓存数据 |
-| Bot API file_id 过期 | 无 | 文件已下载到 DFS，不再依赖 Bot API |
+| 同一贴纸集被多个请求并发获取 | 无 | `StickerSetFlight` singleflight 机制，只有一个请求执行下载 |
+| Bot API file_id 过期 | 无 | 文件已下载到 MinIO，不再依赖 Bot API |
 | 贴纸集更新（官方新增贴纸） | 当前不自动刷新 | 后续可加 TTL 重新拉取机制 |
 | DFS 上传中途失败 | 整个 set 获取失败返回错误 | 下次请求会重新拉取 |
 

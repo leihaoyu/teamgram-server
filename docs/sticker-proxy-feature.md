@@ -2,13 +2,13 @@
 
 ## 概述
 
-通过 Telegram Bot API 代理获取贴纸包数据，下载贴纸文件存储到自有 DFS（MinIO），使客户端可以在私有部署的 Teamgram 服务器上查看和使用公共贴纸包。
+通过 Telegram Bot API 代理获取贴纸包数据，流式下载贴纸文件直接写入自有 MinIO 存储（跳过 DFS gRPC 链路），使客户端可以在私有部署的 Teamgram 服务器上查看和使用公共贴纸包。
 
 ## 架构
 
 ```
-客户端 → Gateway → Session → BFF(stickers) → Bot API(获取元数据/下载文件)
-                                            → Media Service → DFS(MinIO 存储)
+客户端 → Gateway → Session → BFF(stickers) → Bot API(获取元数据/流式下载文件)
+                                            → MinIO(直接流式写入，跳过 DFS gRPC)
                                             → MySQL(缓存元数据)
 ```
 
@@ -35,14 +35,15 @@
 1. BFF 收到 inputStickerSetShortName("AP_DI2")
 2. 查 MySQL 缓存 → 没有
 3. 调用 Bot API getStickerSet → 获取贴纸列表和元数据
-4. 并发下载所有贴纸文件（10 per batch）：
+4. 并发流式下载所有贴纸文件（5 workers, 10 per batch）：
    a. Bot API getFile → 获取 file_path
-   b. Bot API downloadFile → 下载原始文件字节
-   c. MediaUploadedDocumentMedia(FileData=bytes, ThumbData=thumbBytes)
-      → 直接传递文件字节，跳过 SSDB
-      → DFS 写入 MinIO + 注册到 documents 表
+   b. Bot API DownloadFileStream → HTTP resp.Body (io.ReadCloser)
+   c. MinIO PutObject(documents/{docId}.dat, resp.Body) — 流式零拷贝，跳过 DFS gRPC
+   d. 缩略图: Bot API DownloadFile(thumb) → MinIO PutObject(photos/m/{docId}.dat)
+   e. 缩略图处理: DecodeWebp → Resize(40px) → EncodeStripped → PhotoStrippedSize
+   f. BFF 本地构建 Document protobuf (IDGen 生成 docId，本地计算 accessHash)
 5. 存储到 MySQL: sticker_sets + sticker_set_documents
-6. 返回 messages.StickerSet 响应（包含 DFS 分配的 document ID）
+6. 返回 messages.StickerSet 响应（包含本地生成的 document ID）
 ```
 
 ### 后续请求（缓存命中）
@@ -219,16 +220,12 @@ CREATE TABLE user_installed_sticker_sets (
 | 文件 | 用途 |
 |------|------|
 | `app/bff/stickers/internal/core/messages.getStickerSet_handler.go` | 主处理器：获取/缓存/返回贴纸集 |
-| `app/bff/stickers/internal/dao/download.go` | 下载 & 上传逻辑，序列化/反序列化 |
+| `app/bff/stickers/internal/dao/download.go` | 流式下载 → MinIO 直接上传，Document protobuf 构建 |
+| `app/bff/stickers/internal/dao/botapi.go` | Bot API HTTP 客户端（连接池，DownloadFileStream 流式下载） |
+| `app/bff/stickers/internal/dao/dao.go` | Dao 聚合（MySQL + IDGen + MinIO Client + BotAPI） |
 | `app/bff/stickers/internal/dal/dao/mysql_dao/` | MySQL DAO（sticker_sets, sticker_set_documents, user_recent/faved_stickers, user_installed_sticker_sets） |
-| `app/service/dfs/internal/core/dfs.uploadDocumentFileV2_handler.go` | DFS 通用文件上传处理器 |
-| `app/service/dfs/internal/core/dfs.downloadFile_handler.go` | DFS 文件下载处理器 |
-| `app/service/dfs/internal/model/image_util.go` | 文件类型映射（扩展名 → storage.FileType） |
-| `app/service/dfs/internal/dao/cache_file.go` | SSDB 缓存 & MinIO 读取 |
-| `app/service/dfs/internal/dao/ssdb_reader.go` | SSDB 分片读取器 |
-| `app/service/media/internal/core/media.uploadedDocumentMedia_handler.go` | 媒体上传：DFS + documents 表注册 |
-| `app/service/media/internal/dao/document.go` | Document 表 CRUD（SaveDocumentV2, GetDocumentById） |
-| `app/bff/bff/client/bff_proxy_client.go` | BFF 代理客户端（60s 超时） |
+| `pkg/imaging/` | 共享图片处理包（DecodeWebp, Resize, EncodeStripped） |
+| `app/service/dfs/internal/core/dfs.downloadFile_handler.go` | DFS 文件下载处理器（客户端通过 DFS 读取 MinIO 文件） |
 
 ## 已修复的 Bug
 
@@ -290,22 +287,21 @@ CREATE TABLE user_installed_sticker_sets (
 
 **修复**: 外部缩略图（Bot API 下载的）直接以原始 WebP 格式存储，保留透明度。内部图片缩略图（isThumb=true 的情况）使用 `FlattenToWhite()` 将透明区域填充为白色后再编码为 JPEG。
 
-### Bug 8: 贴纸下载内存飙涨（SSDB 绕行优化）
+### Bug 8: 贴纸下载内存飙涨 + 速度慢
 
-**现象**: Bot API 下载贴纸包时内存飙升，每个 sticker 文件经过 5 次内存拷贝。
+**现象**: Bot API 下载贴纸包时内存飙升，每个 sticker 文件经过多次内存拷贝。100 个贴纸的包需要 100 秒。
 
-**原因**: 下载链路经过 `Bot API → BFF → gRPC(DfsWriteFilePartData) → SSDB 写入 → SSDB 读回 → DFS → MinIO`，SSDB 往返完全不必要。
+**原因**: 下载链路经过 `Bot API → BFF([]byte) → gRPC(Media) → gRPC(DFS) → SSDB → MinIO`，文件字节在进程间多次拷贝，且并发度只有 1。
 
-**修复**: 新增 `FileData`/`ThumbData` 字段到 `TLMediaUploadedDocumentMedia` 和 `TLDfsUploadDocumentFileV2` proto 结构体。当这些字段有值时，DFS 直接使用传入的字节写入 MinIO，完全跳过 SSDB。内存拷贝从 5 次减少到 2 次。
+**修复（v1 — SSDB 绕行）**: 新增 `FileData`/`ThumbData` 字段跳过 SSDB，减少到 2 次拷贝。
 
-**向后兼容**: 字段为空时走原有 SSDB 流程，不影响非贴纸文件上传。
-
-**普通图片/视频上传不受影响**:
-- 客户端上传图片/视频时，`FileData`/`ThumbData` 字段为空（proto 空字段不序列化，零开销）
-- `DfsUploadDocumentFileV2` 检测到 `len(in.FileData) == 0`，走 `else` 分支：`OpenFile(SSDB)` → `SetCacheFileInfo` → `ReadAll` → MinIO 写入，与修改前逻辑完全一致
-- 外部缩略图处理：先检查 `ThumbData`（为空），再检查 `InputMedia.Thumb`（原有 SSDB 流程），向后兼容
-- `media.uploadedDocumentMedia_handler.go` 中 GIF（`isGif`）和 MP4 分支不传递 `FileData`/`ThumbData`，完全不受影响
-- 唯一的差异：isThumb 路径的 `ReadAll` 时机从缩略图生成时提前到入口处，功能上等价；MinIO 写入统一增加了 size mismatch 校验（更安全）
+**修复（v2 — 流式直传，当前方案）**: 彻底跳过 DFS/Media gRPC 链路。BFF 直接持有 MinIO 客户端，HTTP 下载流（`resp.Body`）通过 `io.Reader` 直接传给 `MinIO.PutObject()`，实现零拷贝流式传输：
+- HTTP 响应体流式写入 MinIO，文件数据不在内存中完整缓存
+- 5 个并发 worker + 全局信号量限制总并发
+- 每批 10 个处理完后触发 `runtime.GC()` + `debug.FreeOSMemory()` 回收内存
+- Document protobuf 在 BFF 本地构建（IDGen 生成 docId，本地计算 accessHash）
+- 缩略图（小文件）仍使用 `[]byte` 缓冲，下载后直接写入 MinIO `photos` 桶
+- 缩略图处理使用 `pkg/imaging` 共享包：DecodeWebp → Resize(40px) → EncodeStripped → PhotoStrippedSize
 
 ### Bug 9: 缩略图下载返回 fileJpeg 而非 fileWebp
 
@@ -518,7 +514,7 @@ docker exec -i <mysql-container> mysql -u root -p teamgram_stickers -e "
 | `file_info_{creator}_{fileId}` | 3h | 文件元数据 |
 | `cache_file_info_{documentId}` | 2h | docId → 原始文件映射 |
 
-**注意**: 贴纸下载使用直接模式（FileData 字段），完全跳过 SSDB，上述缓存不再适用于贴纸文件。普通文件上传仍使用 SSDB 流程。
+**注意**: 贴纸下载使用流式直传模式（BFF 直接写入 MinIO），完全跳过 SSDB 和 DFS gRPC 链路，上述缓存不再适用于贴纸文件。普通文件上传仍使用 SSDB 流程。
 
 ## Docker 配置
 
