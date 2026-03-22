@@ -278,7 +278,8 @@ func (d *Dao) GetImmutableUser(ctx context.Context, id int64, privacy bool, cont
 
 	if userData.UserType == user.UserTypeUnknown ||
 		userData.UserType == user.UserTypeBot ||
-		userData.UserType == user.UserTypeDeleted {
+		userData.UserType == user.UserTypeDeleted ||
+		userData.UserType == user.UserTypeService {
 		// not need load
 		return immutableUser, nil
 	}
