@@ -55,4 +55,5 @@ type Config struct {
 	SystemAdminUserId         int64                      `json:",default=777001"`
 	TestCityName              string                     `json:",optional"`
 	TestCityLocale            string                     `json:",optional"`
+	DevicesMySQL              *sqlx.Config               `json:",optional"`
 }

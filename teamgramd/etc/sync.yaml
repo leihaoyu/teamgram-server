@@ -57,3 +57,23 @@ ChatClient:
       - 127.0.0.1:2379
     Key: service.biz_service
 
+PushClient:
+  Topic:   "Push-T"
+  Brokers:
+    - 127.0.0.1:9092
+
+# APNs 推送配置（可选）
+#APNs:
+#  KeyFile: "../etc/APNs_AuthKey.p8"
+#  KeyID: "XXXXXXXXXX"
+#  TeamID: "XXXXXXXXXX"
+#  BundleID: "com.yourapp.bundleid"
+#  Production: false
+
+# devices 表 MySQL 配置
+DevicesMySQL:
+  DSN: root:@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true
+  Active: 8
+  Idle: 8
+  IdleTimeout: 4h
+

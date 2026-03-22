@@ -18,6 +18,9 @@ import (
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	idgen_client "github.com/teamgram/teamgram-server/app/service/idgen/client"
 	status_client "github.com/teamgram/teamgram-server/app/service/status/client"
+	apns2 "github.com/sideshow/apns2"
+	"github.com/sideshow/apns2/token"
+	"github.com/zeromicro/go-zero/core/logx"
 	"github.com/zeromicro/go-zero/core/stores/kv"
 	"github.com/zeromicro/go-zero/zrpc"
 )
@@ -30,7 +33,10 @@ type Dao struct {
 	idgen_client.IDGenClient2
 	status_client.StatusClient
 	chat_client.ChatClient
-	PushClient sync_client.SyncClient
+	PushClient   sync_client.SyncClient
+	APNsClient   *apns2.Client
+	APNsBundleID string
+	DevicesDB    *sqlx.DB
 }
 
 func New(c config.Config) *Dao {
@@ -46,6 +52,28 @@ func New(c config.Config) *Dao {
 	}
 	if c.PushClient != nil {
 		d.PushClient = sync_client.NewSyncMqClient(kafka.MustKafkaProducer(c.PushClient))
+	}
+	if c.DevicesMySQL != nil {
+		d.DevicesDB = sqlx.NewMySQL(c.DevicesMySQL)
+	}
+	if c.APNs != nil {
+		authKey, err := token.AuthKeyFromFile(c.APNs.KeyFile)
+		if err != nil {
+			logx.Errorf("APNs: failed to load auth key from %s: %v", c.APNs.KeyFile, err)
+		} else {
+			tkn := &token.Token{
+				AuthKey: authKey,
+				KeyID:   c.APNs.KeyID,
+				TeamID:  c.APNs.TeamID,
+			}
+			if c.APNs.Production {
+				d.APNsClient = apns2.NewTokenClient(tkn).Production()
+			} else {
+				d.APNsClient = apns2.NewTokenClient(tkn).Development()
+			}
+			d.APNsBundleID = c.APNs.BundleID
+			logx.Infof("APNs: client initialized, bundleID=%s, production=%v", c.APNs.BundleID, c.APNs.Production)
+		}
 	}
 
 	go d.watch(c.SessionClient)

@@ -173,6 +173,11 @@ docker-compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d
 | `MINIO_URI` | `127.0.0.1:9000` | MinIO 地址 |
 | `MINIO_KEY` | `minio` | MinIO Access Key |
 | `MINIO_SECRET` | `miniostorage` | MinIO Secret Key |
+| `APNS_KEY_FILE` | （空） | APNs .p8 密钥文件路径，设置后启用 iOS 推送 |
+| `APNS_KEY_ID` | （空） | Apple Developer 后台的 Key ID |
+| `APNS_TEAM_ID` | （空） | Apple Developer Team ID |
+| `APNS_BUNDLE_ID` | （空） | iOS 应用的 Bundle ID |
+| `APNS_PRODUCTION` | `false` | `true` = 生产环境推送，`false` = sandbox |
 
 开发模式使用 `entrypoint.sh` 中的默认值（Docker DNS 名称）。
 
@@ -223,3 +228,90 @@ grep -r "error\|panic" /app/logs/bff/*.log | tail -20
 | auto_groups 表不存在 | CREATE TABLE 在错误的数据库 | `1_teamgram.sql` 已修复位置 |
 | host 模式下服务连不上 | Docker Desktop 不支持 host 模式 | 开发环境用 bridge 模式，仅生产 Linux 用 host |
 | 容器内部端口被外部访问 | 防火墙未配置 | 按本文档防火墙步骤配置 ufw |
+
+## APNs 推送通知配置（iOS）
+
+### 前提条件
+
+1. Apple Developer 账号（$99/年）
+2. 创建 APNs Auth Key（.p8 文件），在 [Apple Developer - Keys](https://developer.apple.com/account/resources/authkeys/list) 页面
+3. 记录 **Key ID**（10 位字符串）和 **Team ID**（右上角或 Membership 页面）
+4. iOS 应用的 **Bundle ID**（如 `com.yourcompany.yourapp`）
+
+### 配置步骤
+
+#### 1. 准备密钥文件
+
+将下载的 `.p8` 文件放到服务器的 `teamgramd/etc/` 目录：
+
+```bash
+# 文件名类似 AuthKey_XXXXXXXXXX.p8
+cp AuthKey_XXXXXXXXXX.p8 teamgramd/etc/APNs_AuthKey.p8
+```
+
+#### 2. 方式一：Docker 环境变量（推荐）
+
+在 `docker-compose.prod.yaml` 中添加：
+
+```yaml
+services:
+  teamgram:
+    environment:
+      APNS_KEY_FILE: "../etc/APNs_AuthKey.p8"
+      APNS_KEY_ID: "XXXXXXXXXX"
+      APNS_TEAM_ID: "XXXXXXXXXX"
+      APNS_BUNDLE_ID: "com.yourcompany.yourapp"
+      APNS_PRODUCTION: "true"
+```
+
+`entrypoint.sh` 会自动将 APNs 配置注入到 `sync.yaml` 中。
+
+#### 2. 方式二：直接修改配置文件
+
+编辑 `teamgramd/etc/sync.yaml`，取消 APNs 部分的注释并填入实际值：
+
+```yaml
+APNs:
+  KeyFile: "../etc/APNs_AuthKey.p8"
+  KeyID: "XXXXXXXXXX"
+  TeamID: "XXXXXXXXXX"
+  BundleID: "com.yourcompany.yourapp"
+  Production: true    # 上架后改为 true
+```
+
+### 验证推送
+
+```bash
+# 1. iOS 客户端登录后，检查 devices 表是否有 token_type=1 的记录
+docker exec mysql mysql -uteamgram -pteamgram teamgram -e \
+  "SELECT user_id, token_type, LEFT(token, 20) as token_prefix, state FROM devices WHERE token_type = 1;"
+
+# 2. 查看 sync 服务日志确认 APNs 初始化
+docker exec teamgram-server-teamgram-1 grep "APNs" /app/logs/sync/*.log
+
+# 3. 发送消息后查看推送日志
+docker exec teamgram-server-teamgram-1 grep "pushUpdatesIfNot\|SendAPNsPush" /app/logs/sync/*.log | tail -20
+```
+
+### 推送流程说明
+
+```
+消息发送 → inbox 服务 → sync.pushUpdates
+                              │
+                    ┌─────────┴─────────┐
+                    │                   │
+            在线设备: 直接推送      PushClient (Kafka "Push-T")
+            via Gateway/Session         │
+                                        ▼
+                              sync.pushUpdatesIfNot
+                                        │
+                              查询 devices 表 (token_type=1)
+                              排除在线设备 (excludes)
+                                        │
+                                        ▼
+                              APNs 推送到离线 iOS 设备
+```
+
+- 只有用户**所有设备都离线**或**部分设备离线**时，才会触发 APNs 推送
+- 在线设备通过 MTProto 实时推送，不走 APNs
+- 无效的 device token（过期、卸载）会自动标记为 `state=1`（注销）

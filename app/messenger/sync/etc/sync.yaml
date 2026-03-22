@@ -66,3 +66,18 @@ BotsClient:
   Brokers:
     - 127.0.0.1:9092
 
+# APNs 推送配置（可选，不配置则不发送 iOS 推送）
+#APNs:
+#  KeyFile: "../etc/APNs_AuthKey.p8"
+#  KeyID: "XXXXXXXXXX"
+#  TeamID: "XXXXXXXXXX"
+#  BundleID: "com.yourapp.bundleid"
+#  Production: false
+
+# devices 表 MySQL 配置（用于查询用户推送设备）
+DevicesMySQL:
+  DSN: root:@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true
+  Active: 8
+  Idle: 8
+  IdleTimeout: 4h
+

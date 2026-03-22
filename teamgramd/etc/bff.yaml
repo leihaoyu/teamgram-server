@@ -95,3 +95,10 @@ SystemAdminUserId: 777001
 # 测试用：无 GeoIP 数据库时强制创建城市群（生产环境请删除此配置）
 TestCityName: "Shanghai"
 TestCityLocale: "zh-CN"
+
+# devices 表 MySQL 配置（用于 APNs 推送设备注册）
+DevicesMySQL:
+  DSN: root:@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true
+  Active: 8
+  Idle: 8
+  IdleTimeout: 4h

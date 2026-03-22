@@ -33,6 +33,14 @@ type Routine struct {
 	Chan uint64
 }
 
+type APNsConfig struct {
+	KeyFile    string // .p8 文件路径
+	KeyID      string
+	TeamID     string
+	BundleID   string
+	Production bool `json:",default=true"`
+}
+
 type Config struct {
 	zrpc.RpcServerConf
 	Mysql         sqlx.Config
@@ -45,4 +53,6 @@ type Config struct {
 	StatusClient  zrpc.RpcClientConf
 	ChatClient    zrpc.RpcClientConf
 	PushClient    *kafka.KafkaProducerConf `json:",optional"`
+	APNs          *APNsConfig             `json:",optional"`
+	DevicesMySQL  *sqlx.Config            `json:",optional"`
 }

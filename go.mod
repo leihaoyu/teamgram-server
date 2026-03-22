@@ -10,6 +10,7 @@ require (
 	github.com/minio/minio-go/v7 v7.0.49
 	github.com/nyaruka/phonenumbers v1.3.0
 	github.com/oschwald/geoip2-golang v1.8.0
+	github.com/sideshow/apns2 v0.25.0
 	github.com/stretchr/testify v1.8.4
 	github.com/teamgram/marmota v0.1.19
 	github.com/teamgram/proto v0.170.0

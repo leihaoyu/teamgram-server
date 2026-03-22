@@ -15,6 +15,11 @@ export MINIO_KEY=${MINIO_KEY:-"minio"}
 export MINIO_SECRET=${MINIO_SECRET:-"miniostorage"}
 export MINIO_SSL=${MINIO_SSL:-"false"}
 #export MTZ=${MTZ:-"Asia%2FTehran"}
+export APNS_KEY_FILE=${APNS_KEY_FILE:-""}
+export APNS_KEY_ID=${APNS_KEY_ID:-""}
+export APNS_TEAM_ID=${APNS_TEAM_ID:-""}
+export APNS_BUNDLE_ID=${APNS_BUNDLE_ID:-""}
+export APNS_PRODUCTION=${APNS_PRODUCTION:-"false"}
 
 # create configs from config templates.
 createConfigs() {
@@ -38,6 +43,20 @@ createConfigs() {
 }
 
 createConfigs
+
+# Inject APNs config into sync.yaml if APNS_KEY_FILE is set
+if [ -n "$APNS_KEY_FILE" ]; then
+  cat >> /app/etc2/sync.yaml <<EOF
+
+APNs:
+  KeyFile: "$APNS_KEY_FILE"
+  KeyID: "$APNS_KEY_ID"
+  TeamID: "$APNS_TEAM_ID"
+  BundleID: "$APNS_BUNDLE_ID"
+  Production: $APNS_PRODUCTION
+EOF
+  echo "APNs config injected into sync.yaml"
+fi
 
 cd /app/bin
 ./runall-docker.sh

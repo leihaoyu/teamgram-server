@@ -21,6 +21,7 @@ package dao
 import (
 	kafka "github.com/teamgram/marmota/pkg/mq"
 	"github.com/teamgram/marmota/pkg/net/rpcx"
+	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/notification/internal/config"
 	sync_client "github.com/teamgram/teamgram-server/app/messenger/sync/client"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
@@ -31,12 +32,17 @@ type Dao struct {
 	user_client.UserClient
 	chat_client.ChatClient
 	sync_client.SyncClient
+	DevicesDB *sqlx.DB
 }
 
 func New(c config.Config) *Dao {
-	return &Dao{
+	d := &Dao{
 		UserClient: user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 		ChatClient: chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
 		SyncClient: sync_client.NewSyncMqClient(kafka.MustKafkaProducer(c.SyncClient)),
 	}
+	if c.DevicesMySQL != nil {
+		d.DevicesDB = sqlx.NewMySQL(c.DevicesMySQL)
+	}
+	return d
 }

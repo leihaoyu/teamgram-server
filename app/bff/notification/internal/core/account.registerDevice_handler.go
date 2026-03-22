@@ -20,13 +20,29 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/bff/notification/internal/dao"
 )
 
 // AccountRegisterDevice
 // account.registerDevice#ec86017a flags:# no_muted:flags.0?true token_type:int token:string app_sandbox:Bool secret:bytes other_uids:Vector<long> = Bool;
 func (c *NotificationCore) AccountRegisterDevice(in *mtproto.TLAccountRegisterDevice) (*mtproto.Bool, error) {
-	// TODO: not impl
-	c.Logger.Errorf("account.registerDevice - method not impl.")
+	c.Logger.Infof("account.registerDevice - userId: %d, tokenType: %d, token: %s, permAuthKeyId: %d",
+		c.MD.UserId, in.TokenType, in.Token, c.MD.PermAuthKeyId)
+
+	err := c.svcCtx.Dao.RegisterDevice(c.ctx, &dao.DevicesDO{
+		AuthKeyId:  c.MD.PermAuthKeyId,
+		UserId:     c.MD.UserId,
+		TokenType:  in.TokenType,
+		Token:      in.Token,
+		NoMuted:    in.GetNoMuted(),
+		AppSandbox: mtproto.FromBool(in.AppSandbox),
+		Secret:     string(in.Secret),
+		OtherUids:  dao.JoinInt64s(in.OtherUids),
+	})
+	if err != nil {
+		c.Logger.Errorf("account.registerDevice - error: %v", err)
+		return nil, err
+	}
 
 	return mtproto.BoolTrue, nil
 }
