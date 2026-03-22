@@ -1,5 +1,11 @@
 # 生产环境配置（host 网络，仅用于原生 Linux 服务器）
-# 使用方式：docker-compose -f docker-compose.prod.yaml build && docker-compose -f docker-compose.prod.yaml up -d
+# 使用方式：
+#   1. 先启动环境服务：docker-compose -f docker-compose-env.prod.yaml up -d
+#   2. 再启动应用：docker-compose -f docker-compose.prod.yaml build && docker-compose -f docker-compose.prod.yaml up -d
+#
+# 注意：生产环境必须使用 docker-compose-env.prod.yaml（不是 docker-compose-env.yaml）
+#       因为 teamgram 容器使用 host 网络模式，无法通过 Docker DNS 解析容器名，
+#       所以 etcd/kafka 的 advertise 地址必须用 127.0.0.1 而非容器名。
 #
 # 效果：
 #   - teamgram 容器使用 host 网络模式，Gateway 可获取真实客户端 IP

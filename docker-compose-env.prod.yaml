@@ -1,8 +1,9 @@
-# 开发环境依赖服务（配合 docker-compose.yaml 使用）
-# 使用方式：docker-compose -f docker-compose-env.yaml up -d
+# 生产环境依赖服务（配合 docker-compose.prod.yaml 使用）
+# 使用方式：docker-compose -f docker-compose-env.prod.yaml up -d
 #
-# 注意：此文件仅用于开发环境（bridge 网络）。
-#       生产环境请使用 docker-compose-env.prod.yaml
+# 与 docker-compose-env.yaml（开发环境）的区别：
+#   - etcd/kafka 的 advertise 地址使用 127.0.0.1 而非容器名
+#   - 因为 teamgram 容器使用 host 网络模式，无法通过 Docker DNS 解析容器名
 
 version: "3"
 
@@ -27,11 +28,10 @@ services:
     ports:
       - 127.0.0.1:9092:9092
     environment:
-      #TZ: Asia/Shanghai
       KAFKA_BROKER_ID: 0
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
       KAFKA_CREATE_TOPICS: "Inbox-T:1:0,Sync-T:1:0"
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:9092
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
     restart: always
     volumes:
@@ -56,11 +56,11 @@ services:
       ETCD_DATA_DIR: /data
       ETCD_NAME: node1
       INITIAL_CLUSTER_TOKEN: etcd-test-cluster
-      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://etcd:2380
+      ETCD_INITIAL_ADVERTISE_PEER_URLS: http://127.0.0.1:2380
       ETCD_LISTEN_PEER_URLS: http://0.0.0.0:2380
-      ETCD_ADVERTISE_CLIENT_URLS: http://etcd:2379
+      ETCD_ADVERTISE_CLIENT_URLS: http://127.0.0.1:2379
       ETCD_LISTEN_CLIENT_URLS: http://0.0.0.0:2379
-      ETCD_INITIAL_CLUSTER: node1=http://etcd:2380
+      ETCD_INITIAL_CLUSTER: node1=http://127.0.0.1:2380
       ETCD_INITIAL_CLUSTER_STATE: new
       ETCD_AUTO_COMPACTION_RETENTION: 1
     restart: always
@@ -75,8 +75,6 @@ services:
       - 127.0.0.1:6379:6379
     volumes:
       - ./data/redis/data:/data:rw
-      #redis config file
-      #- ./deploy/redis/config/redis.conf:/usr/local/redis/config/redis.conf
     environment:
       TZ: Europe/Moscow
     restart: always
@@ -89,22 +87,15 @@ services:
     image: mysql:5.7
     container_name: mysql
     environment:
-      # 时区上海 - Time zone Shanghai (Change if needed)
-      #TZ: Asia/Shanghai
-      # root 密码 - root password
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-my_root_secret}
       MYSQL_DATABASE: teamgram
       MYSQL_USER: teamgram
       MYSQL_PASSWORD: ${DB_PASSWORD:-teamgram}
-      # MYSQL_ALLOW_EMPTY_PASSWORD: "true"
     ports:
       - 127.0.0.1:3306:3306
     volumes:
-      # 数据挂载 - Data mounting
       - ./data/mysql/data:/var/lib/mysql
       - ./teamgramd/sql:/docker-entrypoint-initdb.d/
-      #- /etc/localtime:/etc/localtime
-      # 日志
     command:
       --default-authentication-plugin=mysql_native_password
       --character-set-server=utf8mb4
