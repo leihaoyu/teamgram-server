@@ -51,6 +51,9 @@ func (c *AuthorizationCore) autoJoinGroups(ctx context.Context, userId int64, fi
 		welcomeTasks = append(welcomeTasks, *task)
 	}
 
+	// 避免连续建群触发 FLOOD_WAIT
+	time.Sleep(1 * time.Second)
+
 	// 2. Join city group based on IP geolocation (synchronous)
 	cityName, locale := c.svcCtx.Dao.GetCityAndLocaleByIp(clientAddr)
 	if cityName == "" && c.svcCtx.Dao.TestCityName != "" {
