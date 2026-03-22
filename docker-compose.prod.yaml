@@ -1,0 +1,22 @@
+# 生产环境覆盖配置（仅用于原生 Linux 服务器）
+# 使用方式：docker-compose -f docker-compose.yaml -f docker-compose.prod.yaml up -d
+#
+# 效果：
+#   - teamgram 容器使用 host 网络模式，Gateway 可获取真实客户端 IP
+#   - 环境变量指向 127.0.0.1（host 模式下不能用 Docker DNS 名称）
+#   - 必须配合 ufw 防火墙使用（见 docs/deployment.md）
+
+version: "3"
+
+services:
+  teamgram:
+    network_mode: host
+    ports: []
+    networks: []
+    environment:
+      ETCD_URL: "127.0.0.1:2379"
+      REDIS_HOST: "127.0.0.1:6379"
+      KAFKA_HOST: "127.0.0.1:9092"
+      MYSQL_URI: "teamgram:${DB_PASSWORD:-teamgram}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4"
+      STICKERS_MYSQL_URI: "teamgram:${DB_PASSWORD:-teamgram}@tcp(127.0.0.1:3306)/teamgram_stickers?charset=utf8mb4&parseTime=true"
+      MINIO_URI: "127.0.0.1:9000"

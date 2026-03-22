@@ -4,13 +4,31 @@ services:
   teamgram:
     build: .
     restart: always
-    network_mode: host
+    ports:
+      - "10443:10443"
+      - "20450:20450"
+      - "20010:20010"
+      - "20020:20020"
+      - "20640:20640"
+      - "20110:20110"
+      - "5222:5222"
+      - "8801:8801"
+      - "20660:20660"
+      - "20650:20650"
+      - "20030:20030"
+      - "20120:20120"
+      - "20670:20670"
+      - "20420:20420"
+      - "6061:6061"
+      - "6062:6062"
+      - "6063:6063"
+    networks:
+      - teamgram_net
     mem_limit: 1280m
-    environment:
-      # host 模式下使用 127.0.0.1 替代 Docker DNS 名称
-      ETCD_URL: "127.0.0.1:2379"
-      REDIS_HOST: "127.0.0.1:6379"
-      KAFKA_HOST: "127.0.0.1:9092"
-      MYSQL_URI: "teamgram:${DB_PASSWORD:-teamgram}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4"
-      STICKERS_MYSQL_URI: "teamgram:${DB_PASSWORD:-teamgram}@tcp(127.0.0.1:3306)/teamgram_stickers?charset=utf8mb4&parseTime=true"
-      MINIO_URI: "127.0.0.1:9000"
+
+networks:
+  teamgram_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
