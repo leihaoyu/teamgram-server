@@ -6,10 +6,11 @@ services:
     restart: always
     network_mode: host
     mem_limit: 1280m
-
-networks:
-  teamgram_net:
-    driver: bridge
-    ipam:
-      config:
-        - subnet: 172.20.0.0/16
+    environment:
+      # host 模式下使用 127.0.0.1 替代 Docker DNS 名称
+      ETCD_URL: "127.0.0.1:2379"
+      REDIS_HOST: "127.0.0.1:6379"
+      KAFKA_HOST: "127.0.0.1:9092"
+      MYSQL_URI: "teamgram:${DB_PASSWORD:-teamgram}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4"
+      STICKERS_MYSQL_URI: "teamgram:${DB_PASSWORD:-teamgram}@tcp(127.0.0.1:3306)/teamgram_stickers?charset=utf8mb4&parseTime=true"
+      MINIO_URI: "127.0.0.1:9000"
