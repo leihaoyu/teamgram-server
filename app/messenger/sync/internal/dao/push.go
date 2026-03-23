@@ -37,9 +37,10 @@ type PushPayload struct {
 	Message    string
 	FromUserId int64
 	MsgId      int32
-	PeerType   string
+	PeerType   string // "user", "chat", "channel"
 	PeerId     int64
 	ChatId     int64
+	ChatTitle  string // 群聊名称
 	Silent     bool
 }
 
@@ -54,12 +55,33 @@ func (d *Dao) SendAPNsPush(ctx context.Context, deviceToken string, p *PushPaylo
 	if p.Silent {
 		pl.ContentAvailable()
 	} else {
-		pl.AlertTitle(p.SenderName)
-		if len(p.Message) > 100 {
-			pl.AlertBody(p.Message[:100] + "...")
-		} else {
-			pl.AlertBody(p.Message)
+		const maxBodyLen = 120
+
+		switch p.PeerType {
+		case "chat", "channel":
+			// 群聊: title=群名, body="发送者: 消息内容"
+			title := p.ChatTitle
+			if title == "" {
+				title = "Group"
+			}
+			pl.AlertTitle(title)
+
+			body := p.SenderName + ": " + p.Message
+			if len([]rune(body)) > maxBodyLen {
+				body = string([]rune(body)[:maxBodyLen]) + "..."
+			}
+			pl.AlertBody(body)
+		default:
+			// 私聊: title=发送者昵称, body=消息内容
+			pl.AlertTitle(p.SenderName)
+
+			body := p.Message
+			if len([]rune(body)) > maxBodyLen {
+				body = string([]rune(body)[:maxBodyLen]) + "..."
+			}
+			pl.AlertBody(body)
 		}
+
 		pl.Sound("default")
 		pl.Badge(1)
 	}

@@ -11,6 +11,8 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/internal/dao"
 	"github.com/teamgram/teamgram-server/app/messenger/sync/sync"
 )
@@ -52,7 +54,33 @@ func (c *SyncCore) SyncPushUpdatesIfNot(in *sync.TLSyncPushUpdatesIfNot) (*mtpro
 		return mtproto.EmptyVoid, nil
 	}
 
-	// 4. Send push to each offline APNs device, deduplicate by token
+	// 4. Resolve sender name from user service if not in updates
+	if pushPayload.SenderName == "New Message" && pushPayload.FromUserId > 0 && c.svcCtx.Dao.UserClient != nil {
+		userData, err := c.svcCtx.Dao.UserClient.UserGetUserDataById(c.ctx, &userpb.TLUserGetUserDataById{
+			UserId: pushPayload.FromUserId,
+		})
+		if err == nil && userData != nil {
+			name := userData.GetFirstName()
+			if ln := userData.GetLastName(); ln != "" {
+				name += " " + ln
+			}
+			if name != "" {
+				pushPayload.SenderName = name
+			}
+		}
+	}
+
+	// 5. Resolve chat title from chat service if not in updates
+	if pushPayload.ChatId > 0 && pushPayload.ChatTitle == "" {
+		mutableChat, err := c.svcCtx.Dao.ChatClient.ChatGetMutableChat(c.ctx, &chatpb.TLChatGetMutableChat{
+			ChatId: pushPayload.ChatId,
+		})
+		if err == nil && mutableChat != nil {
+			pushPayload.ChatTitle = mutableChat.Title()
+		}
+	}
+
+	// 6. Send push to each offline APNs device, deduplicate by token
 	pushedTokens := make(map[string]bool)
 	for _, dev := range devices {
 		if excludeMap[dev.AuthKeyId] {
@@ -136,20 +164,6 @@ func extractPushPayload(updates *mtproto.Updates) *dao.PushPayload {
 						p.PeerId = msg.PeerId.ChannelId
 					}
 				}
-				// Try to find sender name from users list
-				if p.FromUserId > 0 && len(updates.Users) > 0 {
-					for _, u := range updates.Users {
-						if u != nil && u.Id == p.FromUserId {
-							if u.FirstName != nil {
-								p.SenderName = u.FirstName.GetValue()
-							}
-							if u.LastName != nil && u.LastName.GetValue() != "" {
-								p.SenderName += " " + u.LastName.GetValue()
-							}
-							break
-						}
-					}
-				}
 				result = p
 				break
 			}
@@ -186,8 +200,38 @@ func extractPushPayload(updates *mtproto.Updates) *dao.PushPayload {
 		}
 	}
 
+	if result == nil {
+		return nil
+	}
+
+	// Extract sender name from updates.Users
+	if result.FromUserId > 0 && len(updates.Users) > 0 {
+		for _, u := range updates.Users {
+			if u != nil && u.Id == result.FromUserId {
+				name := u.GetFirstName().GetValue()
+				if ln := u.GetLastName().GetValue(); ln != "" {
+					name += " " + ln
+				}
+				if name != "" {
+					result.SenderName = name
+				}
+				break
+			}
+		}
+	}
+
+	// Extract chat title from updates.Chats
+	if result.ChatId > 0 && len(updates.Chats) > 0 {
+		for _, chat := range updates.Chats {
+			if chat != nil && chat.Id == result.ChatId {
+				result.ChatTitle = chat.GetTitle()
+				break
+			}
+		}
+	}
+
 	// Default sender name if not found
-	if result != nil && result.SenderName == "" {
+	if result.SenderName == "" {
 		result.SenderName = "New Message"
 	}
 
