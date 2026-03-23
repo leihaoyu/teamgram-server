@@ -44,9 +44,22 @@ func (d *Dao) getCountryAndRegionByIp(ip string) (string, string) {
 	}
 }
 
-//func getAppNameByAppId(appId int32) string {
-//	return "tdesktop"
-//}
+func getPlatformByLangPack(langPack string) string {
+	switch langPack {
+	case "ios":
+		return "iOS"
+	case "android":
+		return "Android"
+	case "tdesktop":
+		return "Desktop"
+	case "macos":
+		return "macOS"
+	case "web", "webk", "webz":
+		return "Web"
+	default:
+		return ""
+	}
+}
 
 func (d *Dao) GetAuthorization(ctx context.Context, authKeyId int64) (*mtproto.Authorization, error) {
 	cData, err := d.GetCacheAuthData(ctx, authKeyId)
@@ -63,7 +76,7 @@ func (d *Dao) GetAuthorization(ctx context.Context, authKeyId int64) (*mtproto.A
 		Hash:            0,
 		PasswordPending: false,
 		DeviceModel:     cData.DeviceModel(),
-		Platform:        "",
+		Platform:        getPlatformByLangPack(cData.LangPack()),
 		SystemVersion:   cData.SystemVersion(),
 		ApiId:           cData.ApiId(),
 		AppName:         cData.LangPack(),
@@ -108,7 +121,7 @@ func (d *Dao) GetAuthorizations(ctx context.Context, userId int64, excludeAuthKe
 					PasswordPending: false,
 					Hash:            cData.Hash(),
 					DeviceModel:     cData.DeviceModel(),
-					Platform:        "",
+					Platform:        getPlatformByLangPack(cData.LangPack()),
 					SystemVersion:   cData.SystemVersion(),
 					ApiId:           cData.ApiId(),
 					AppName:         cData.LangPack(),
