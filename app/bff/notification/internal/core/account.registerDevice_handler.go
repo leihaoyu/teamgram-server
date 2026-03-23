@@ -19,6 +19,8 @@
 package core
 
 import (
+	"encoding/hex"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/notification/internal/dao"
 )
@@ -36,7 +38,7 @@ func (c *NotificationCore) AccountRegisterDevice(in *mtproto.TLAccountRegisterDe
 		Token:      in.Token,
 		NoMuted:    in.GetNoMuted(),
 		AppSandbox: mtproto.FromBool(in.AppSandbox),
-		Secret:     string(in.Secret),
+		Secret:     hex.EncodeToString(in.Secret),
 		OtherUids:  dao.JoinInt64s(in.OtherUids),
 	})
 	if err != nil {
