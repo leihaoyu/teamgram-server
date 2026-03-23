@@ -15,7 +15,7 @@ import (
 // account.getAuthorizations#e320c158 = account.Authorizations;
 func (c *AccountCore) AccountGetAuthorizations(in *mtproto.TLAccountGetAuthorizations) (*mtproto.Account_Authorizations, error) {
 	rValue, err := c.svcCtx.Dao.AuthsessionClient.AuthsessionGetAuthorizations(c.ctx, &authsession.TLAuthsessionGetAuthorizations{
-		UserId:          c.MD.UserId,
+		UserId:           c.MD.UserId,
 		ExcludeAuthKeyId: c.MD.AuthId,
 	})
 	if err != nil {

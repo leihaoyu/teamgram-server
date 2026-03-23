@@ -93,11 +93,11 @@ func (dao *DialogsDAO) InsertIgnoreTx(tx *sqlx.Tx, do *dataobject.DialogsDO) (la
 }
 
 // InsertOrUpdate
-// insert into dialogs(user_id, peer_type, peer_id, peer_dialog_id, top_message, pinned_msg_id, unread_count, draft_message_data, date2) values (:user_id, :peer_type, :peer_id, :peer_dialog_id, :top_message, :pinned_msg_id, :unread_count, :draft_message_data, :date2) on duplicate key update top_message = values(top_message), unread_count = unread_count + values(unread_count), date2 = values(date2)
+// insert into dialogs(user_id, peer_type, peer_id, peer_dialog_id, top_message, pinned_msg_id, unread_count, draft_message_data, date2) values (:user_id, :peer_type, :peer_id, :peer_dialog_id, :top_message, :pinned_msg_id, :unread_count, :draft_message_data, :date2) on duplicate key update top_message = values(top_message), unread_count = unread_count + values(unread_count), date2 = values(date2), deleted = 0
 // TODO(@benqi): sqlmap
 func (dao *DialogsDAO) InsertOrUpdate(ctx context.Context, do *dataobject.DialogsDO) (lastInsertId, rowsAffected int64, err error) {
 	var (
-		query = "insert into dialogs(user_id, peer_type, peer_id, peer_dialog_id, top_message, pinned_msg_id, unread_count, draft_message_data, date2) values (:user_id, :peer_type, :peer_id, :peer_dialog_id, :top_message, :pinned_msg_id, :unread_count, :draft_message_data, :date2) on duplicate key update top_message = values(top_message), unread_count = unread_count + values(unread_count), date2 = values(date2)"
+		query = "insert into dialogs(user_id, peer_type, peer_id, peer_dialog_id, top_message, pinned_msg_id, unread_count, draft_message_data, date2) values (:user_id, :peer_type, :peer_id, :peer_dialog_id, :top_message, :pinned_msg_id, :unread_count, :draft_message_data, :date2) on duplicate key update top_message = values(top_message), unread_count = unread_count + values(unread_count), date2 = values(date2), deleted = 0"
 		r     sql.Result
 	)
 
@@ -121,11 +121,11 @@ func (dao *DialogsDAO) InsertOrUpdate(ctx context.Context, do *dataobject.Dialog
 }
 
 // InsertOrUpdateTx
-// insert into dialogs(user_id, peer_type, peer_id, peer_dialog_id, top_message, pinned_msg_id, unread_count, draft_message_data, date2) values (:user_id, :peer_type, :peer_id, :peer_dialog_id, :top_message, :pinned_msg_id, :unread_count, :draft_message_data, :date2) on duplicate key update top_message = values(top_message), unread_count = unread_count + values(unread_count), date2 = values(date2)
+// insert into dialogs(user_id, peer_type, peer_id, peer_dialog_id, top_message, pinned_msg_id, unread_count, draft_message_data, date2) values (:user_id, :peer_type, :peer_id, :peer_dialog_id, :top_message, :pinned_msg_id, :unread_count, :draft_message_data, :date2) on duplicate key update top_message = values(top_message), unread_count = unread_count + values(unread_count), date2 = values(date2), deleted = 0
 // TODO(@benqi): sqlmap
 func (dao *DialogsDAO) InsertOrUpdateTx(tx *sqlx.Tx, do *dataobject.DialogsDO) (lastInsertId, rowsAffected int64, err error) {
 	var (
-		query = "insert into dialogs(user_id, peer_type, peer_id, peer_dialog_id, top_message, pinned_msg_id, unread_count, draft_message_data, date2) values (:user_id, :peer_type, :peer_id, :peer_dialog_id, :top_message, :pinned_msg_id, :unread_count, :draft_message_data, :date2) on duplicate key update top_message = values(top_message), unread_count = unread_count + values(unread_count), date2 = values(date2)"
+		query = "insert into dialogs(user_id, peer_type, peer_id, peer_dialog_id, top_message, pinned_msg_id, unread_count, draft_message_data, date2) values (:user_id, :peer_type, :peer_id, :peer_dialog_id, :top_message, :pinned_msg_id, :unread_count, :draft_message_data, :date2) on duplicate key update top_message = values(top_message), unread_count = unread_count + values(unread_count), date2 = values(date2), deleted = 0"
 		r     sql.Result
 	)
 
@@ -855,11 +855,11 @@ func (dao *DialogsDAO) UpdatePinnedMsgIdTx(tx *sqlx.Tx, pinned_msg_id int32, use
 }
 
 // Delete
-// delete from dialogs where user_id = :user_id and peer_type = :peer_type and peer_id = :peer_id
+// update dialogs set deleted = 1 where user_id = :user_id and peer_type = :peer_type and peer_id = :peer_id
 // TODO(@benqi): sqlmap
 func (dao *DialogsDAO) Delete(ctx context.Context, user_id int64, peer_type int32, peer_id int64) (rowsAffected int64, err error) {
 	var (
-		query   = "delete from dialogs where user_id = ? and peer_type = ? and peer_id = ?"
+		query   = "update dialogs set deleted = 1 where user_id = ? and peer_type = ? and peer_id = ?"
 		rResult sql.Result
 	)
 	rResult, err = dao.db.Exec(ctx, query, user_id, peer_type, peer_id)
@@ -878,11 +878,11 @@ func (dao *DialogsDAO) Delete(ctx context.Context, user_id int64, peer_type int3
 }
 
 // DeleteTx
-// delete from dialogs where user_id = :user_id and peer_type = :peer_type and peer_id = :peer_id
+// update dialogs set deleted = 1 where user_id = :user_id and peer_type = :peer_type and peer_id = :peer_id
 // TODO(@benqi): sqlmap
 func (dao *DialogsDAO) DeleteTx(tx *sqlx.Tx, user_id int64, peer_type int32, peer_id int64) (rowsAffected int64, err error) {
 	var (
-		query   = "delete from dialogs where user_id = ? and peer_type = ? and peer_id = ?"
+		query   = "update dialogs set deleted = 1 where user_id = ? and peer_type = ? and peer_id = ?"
 		rResult sql.Result
 	)
 	rResult, err = tx.Exec(query, user_id, peer_type, peer_id)
