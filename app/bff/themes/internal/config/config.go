@@ -6,4 +6,7 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
+	MsgClient    zrpc.RpcClientConf
+	DialogClient zrpc.RpcClientConf
+	UserClient   zrpc.RpcClientConf
 }

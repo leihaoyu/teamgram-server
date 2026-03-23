@@ -355,6 +355,9 @@ func (s *Server) Initialize() error {
 			grpcServer,
 			themes_helper.New(themes_helper.Config{
 				RpcServerConf: c.RpcServerConf,
+				MsgClient:     c.MsgClient,
+				DialogClient:  c.BizServiceClient,
+				UserClient:    c.BizServiceClient,
 			}))
 
 		// wallpapers_helper

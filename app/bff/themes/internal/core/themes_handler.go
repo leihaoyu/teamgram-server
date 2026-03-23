@@ -4,12 +4,13 @@ import (
 	"github.com/teamgram/proto/mtproto"
 )
 
-// AccountGetThemes - returns cloud themes (user-created/saved)
+// AccountGetThemes - returns appearance themes for the settings page
 func (c *ThemesCore) AccountGetThemes(in *mtproto.TLAccountGetThemes) (*mtproto.Account_Themes, error) {
-	// No user-created cloud themes yet, return empty
+	themes := defaultAppearanceThemes()
+
 	return mtproto.MakeTLAccountThemes(&mtproto.Account_Themes{
-		Hash:   0,
-		Themes: []*mtproto.Theme{},
+		Hash:   int64(len(themes)),
+		Themes: themes,
 	}).To_Account_Themes(), nil
 }
 

@@ -52,3 +52,59 @@ func defaultChatThemes() []*mtproto.Theme {
 		makeChatTheme(20010, "🎄", 0xc74040, []int32{0xd47676, 0x72a550}, 0xc74040, []int32{0x5c2626, 0x2e4a2a}),
 	}
 }
+
+// makeAppearanceTheme creates a theme for the appearance settings page (shown as accent color dots)
+func makeAppearanceTheme(id int64, slug string, title string, baseTheme *mtproto.BaseTheme, accentColor int32, msgColors []int32) *mtproto.Theme {
+	return mtproto.MakeTLTheme(&mtproto.Theme{
+		Id:         id,
+		AccessHash: id * 37,
+		Slug:       slug,
+		Title:      title,
+		Settings: []*mtproto.ThemeSettings{
+			mtproto.MakeTLThemeSettings(&mtproto.ThemeSettings{
+				BaseTheme:     baseTheme,
+				AccentColor:   accentColor,
+				MessageColors: msgColors,
+			}).To_ThemeSettings(),
+		},
+	}).To_Theme()
+}
+
+// defaultAppearanceThemes returns themes for the iOS appearance settings page.
+// Themes with settings are displayed as accent color swatches.
+func defaultAppearanceThemes() []*mtproto.Theme {
+	dayBase := mtproto.MakeTLBaseThemeDay(&mtproto.BaseTheme{}).To_BaseTheme()
+	classicBase := mtproto.MakeTLBaseThemeClassic(&mtproto.BaseTheme{}).To_BaseTheme()
+	nightBase := mtproto.MakeTLBaseThemeNight(&mtproto.BaseTheme{}).To_BaseTheme()
+	tintedBase := mtproto.MakeTLBaseThemeTinted(&mtproto.BaseTheme{}).To_BaseTheme()
+
+	return []*mtproto.Theme{
+		// Day theme accent colors
+		makeAppearanceTheme(30001, "day-blue", "Blue", dayBase, 0x3e88f7, []int32{0x4fae4e, 0x51b5a8}),
+		makeAppearanceTheme(30002, "day-red", "Red", dayBase, 0xf83b4c, []int32{0xf83b4c}),
+		makeAppearanceTheme(30003, "day-orange", "Orange", dayBase, 0xfa5e16, []int32{0xfa5e16}),
+		makeAppearanceTheme(30004, "day-yellow", "Yellow", dayBase, 0xffc402, []int32{0xffc402}),
+		makeAppearanceTheme(30005, "day-green", "Green", dayBase, 0x3dbd4d, []int32{0x3dbd4d}),
+		makeAppearanceTheme(30006, "day-cyan", "Cyan", dayBase, 0x29b6f6, []int32{0x29b6f6}),
+		makeAppearanceTheme(30007, "day-pink", "Pink", dayBase, 0xeb6ca4, []int32{0xeb6ca4}),
+		makeAppearanceTheme(30008, "day-purple", "Purple", dayBase, 0x7b68ee, []int32{0x7b68ee}),
+
+		// Classic theme accent colors
+		makeAppearanceTheme(30101, "classic-blue", "Classic Blue", classicBase, 0x3e88f7, []int32{0x4fae4e, 0x51b5a8}),
+		makeAppearanceTheme(30102, "classic-red", "Classic Red", classicBase, 0xf83b4c, []int32{0xf83b4c}),
+		makeAppearanceTheme(30103, "classic-orange", "Classic Orange", classicBase, 0xfa5e16, []int32{0xfa5e16}),
+		makeAppearanceTheme(30104, "classic-green", "Classic Green", classicBase, 0x3dbd4d, []int32{0x3dbd4d}),
+
+		// Night theme accent colors
+		makeAppearanceTheme(30201, "night-blue", "Night Blue", nightBase, 0x3e88f7, []int32{0x3e88f7}),
+		makeAppearanceTheme(30202, "night-red", "Night Red", nightBase, 0xf83b4c, []int32{0xf83b4c}),
+		makeAppearanceTheme(30203, "night-green", "Night Green", nightBase, 0x3dbd4d, []int32{0x3dbd4d}),
+		makeAppearanceTheme(30204, "night-purple", "Night Purple", nightBase, 0x7b68ee, []int32{0x7b68ee}),
+
+		// Tinted (dark blue) theme accent colors
+		makeAppearanceTheme(30301, "tinted-blue", "Tinted Blue", tintedBase, 0x3e88f7, []int32{0x3e88f7}),
+		makeAppearanceTheme(30302, "tinted-red", "Tinted Red", tintedBase, 0xf83b4c, []int32{0xf83b4c}),
+		makeAppearanceTheme(30303, "tinted-green", "Tinted Green", tintedBase, 0x3dbd4d, []int32{0x3dbd4d}),
+		makeAppearanceTheme(30304, "tinted-purple", "Tinted Purple", tintedBase, 0x7b68ee, []int32{0x7b68ee}),
+	}
+}
