@@ -2,7 +2,6 @@ package dao
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/sideshow/apns2"
@@ -77,9 +76,7 @@ func (d *Dao) SendAPNsPush(ctx context.Context, deviceToken string, p *PushPaylo
 		customData["chat_id"] = p.ChatId
 	}
 
-	payloadBytes, _ := json.Marshal(customData)
-
-	pl.Custom("custom", json.RawMessage(payloadBytes))
+	pl.Custom("custom", customData)
 
 	notification := &apns2.Notification{
 		DeviceToken: deviceToken,

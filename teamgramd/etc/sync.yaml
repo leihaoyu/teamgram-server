@@ -62,12 +62,14 @@ PushClient:
   Brokers:
     - 127.0.0.1:9092
 
-# APNs 推送配置（可选）
+# APNs 推送配置（由 Docker 环境变量自动注入，无需手动修改）
+# 开发环境: docker-compose.yaml (Production: false)
+# 生产环境: docker-compose.prod.yaml (Production: true)
 #APNs:
-#  KeyFile: "../etc/APNs_AuthKey.p8"
-#  KeyID: "XXXXXXXXXX"
-#  TeamID: "XXXXXXXXXX"
-#  BundleID: "com.yourapp.bundleid"
+#  KeyFile: "../etc/AuthKey_JH5C27A29G.p8"
+#  KeyID: "JH5C27A29G"
+#  TeamID: "3WA4Q9D2GD"
+#  BundleID: "org.delta.pchat"
 #  Production: false
 
 # devices 表 MySQL 配置

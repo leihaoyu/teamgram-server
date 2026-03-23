@@ -8,6 +8,12 @@ services:
   teamgram:
     build: .
     restart: always
+    environment:
+      APNS_KEY_FILE: "../etc/AuthKey_JH5C27A29G.p8"
+      APNS_KEY_ID: "JH5C27A29G"
+      APNS_TEAM_ID: "3WA4Q9D2GD"
+      APNS_BUNDLE_ID: "org.delta.pchat"
+      APNS_PRODUCTION: "false"
     ports:
       - "10443:10443"
       - "20450:20450"

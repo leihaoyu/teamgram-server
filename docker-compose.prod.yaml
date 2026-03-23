@@ -26,4 +26,9 @@ services:
       MYSQL_URI: "teamgram:${DB_PASSWORD:-teamgram}@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4"
       STICKERS_MYSQL_URI: "teamgram:${DB_PASSWORD:-teamgram}@tcp(127.0.0.1:3306)/teamgram_stickers?charset=utf8mb4&parseTime=true"
       MINIO_URI: "127.0.0.1:9000"
+      APNS_KEY_FILE: "../etc/AuthKey_JH5C27A29G.p8"
+      APNS_KEY_ID: "JH5C27A29G"
+      APNS_TEAM_ID: "3WA4Q9D2GD"
+      APNS_BUNDLE_ID: "org.delta.pchat"
+      APNS_PRODUCTION: "true"
     mem_limit: 1280m

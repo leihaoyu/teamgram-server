@@ -36,6 +36,8 @@ teamgramd/bin/*
 !teamgramd/bin/runall-docker.sh
 !teamgramd/bin/server_pkcs1.key
 
+teamgramd/etc/*.p8
+
 teamgramd/logs/*
 !teamgramd/logs/.gitkeep
 
