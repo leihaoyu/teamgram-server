@@ -71,12 +71,11 @@ func (c *DialogsCore) MessagesGetDialogs(in *mtproto.TLMessagesGetDialogs) (*mtp
 		})
 
 	if len(dialogExtList) == 0 {
-		return mtproto.MakeTLMessagesDialogsSlice(&mtproto.Messages_Dialogs{
+		return mtproto.MakeTLMessagesDialogs(&mtproto.Messages_Dialogs{
 			Dialogs:  []*mtproto.Dialog{},
 			Messages: []*mtproto.Message{},
 			Chats:    []*mtproto.Chat{},
 			Users:    []*mtproto.User{},
-			Count:    0,
 		}).To_Messages_Dialogs(), nil
 	}
 
@@ -150,5 +149,5 @@ func (c *DialogsCore) MessagesGetDialogs(in *mtproto.TLMessagesGetDialogs) (*mtp
 			return []*mtproto.Chat{}
 		})
 
-	return messageDialogs.ToMessagesDialogs(dialogCount), nil
+	return messageDialogs.ToMessagesDialogs(dialogCount, limit), nil
 }

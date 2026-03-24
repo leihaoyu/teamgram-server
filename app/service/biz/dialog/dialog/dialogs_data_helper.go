@@ -101,8 +101,22 @@ func (m *DialogsDataHelper) fix() {
 	m.Chats = chats
 }
 
-func (m *DialogsDataHelper) ToMessagesDialogs(count int32) *mtproto.Messages_Dialogs {
+func (m *DialogsDataHelper) ToMessagesDialogs(count int32, limit int32) *mtproto.Messages_Dialogs {
 	m.fix()
+
+	// When the number of dialogs returned is less than the requested limit,
+	// we've reached the end of the list. Return messages.dialogs to tell the
+	// client this is all the data (apiIsAtLowestBoundary = true), so it removes
+	// the chat list hole. Otherwise return messages.dialogsSlice.
+	if int32(len(m.Dialogs)) < limit || int32(len(m.Dialogs)) >= count {
+		return mtproto.MakeTLMessagesDialogs(&mtproto.Messages_Dialogs{
+			Dialogs:  m.Dialogs,
+			Messages: m.Messages,
+			Chats:    m.Chats,
+			Users:    m.Users,
+		}).To_Messages_Dialogs()
+	}
+
 	return mtproto.MakeTLMessagesDialogsSlice(&mtproto.Messages_Dialogs{
 		Dialogs:  m.Dialogs,
 		Messages: m.Messages,
