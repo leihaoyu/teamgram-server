@@ -189,7 +189,9 @@ func (c *BFFProxyClient) TryReturnFakeRpcResult(object mtproto.TLObject) (mtprot
 	// folders
 	case "TLMessagesGetDialogFilters":
 		return &mtproto.Vector_DialogFilter{
-			Datas: []*mtproto.DialogFilter{},
+			Datas: []*mtproto.DialogFilter{
+				mtproto.MakeTLDialogFilterDefault(nil).To_DialogFilter(),
+			},
 		}, nil
 
 	// gifs
