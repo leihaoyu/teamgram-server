@@ -144,12 +144,12 @@ func (p *messagesPluginImpl) downloadAndUploadPhoto(ctx context.Context, imageUR
 }
 
 // ============================================================================
-// isTelegramHost — check if hostname is t.me or telegram.me
+// isTelegramHost — check if hostname is p.chat, t.me or telegram.me
 // ============================================================================
 
 func isTelegramHost(hostname string) bool {
 	h := strings.ToLower(hostname)
-	return h == "t.me" || h == "telegram.me"
+	return h == "p.chat" || h == "t.me" || h == "telegram.me"
 }
 
 // ============================================================================

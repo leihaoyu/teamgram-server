@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	MyAppName      = "Teamgram"
-	MyWebSite      = "teamgram.net"
-	TDotMe         = "t.me"
+	MyAppName      = "PChat"
+	MyWebSite      = "p.chat"
+	TDotMe         = "p.chat"
 	PredefinedUser = false
 
 	// PredefinedUser2
@@ -22,16 +22,16 @@ var (
 )
 
 func init() {
-	flag.StringVar(&MyAppName, "app_name", "Teamgram", "app_name")
-	flag.StringVar(&MyWebSite, "site_name", "teamgram.net", "site_name")
-	flag.StringVar(&TDotMe, "t.me", "t.me", "t.me")
+	flag.StringVar(&MyAppName, "app_name", "PChat", "app_name")
+	flag.StringVar(&MyWebSite, "site_name", "p.chat", "site_name")
+	flag.StringVar(&TDotMe, "t.me", "p.chat", "t.me")
 	flag.BoolVar(&PredefinedUser, "predefined", false, "predefined")
 	flag.BoolVar(&PredefinedUser2, "predefined2", false, "predefined2")
 }
 
 func IsTDotMe(me string) bool {
 	switch me {
-	case "teamgram.me":
+	case "p.chat":
 		return true
 	case "t.me":
 		return true

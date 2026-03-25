@@ -153,7 +153,7 @@ func buildAppConfig() *mtproto.JSONValue {
 			kv("url_auth_domains", jsonStringArray()),
 
 			// Whitelisted domain suffixes for instant view
-			kv("whitelisted_domain_suffixes", jsonStringArray("t.me")),
+			kv("whitelisted_domain_suffixes", jsonStringArray("p.chat", "t.me")),
 
 			// Round video limits
 			kv("round_video_size", jsonNumber(384)),
