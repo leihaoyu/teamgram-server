@@ -34,10 +34,15 @@ func New(_ interface{}) *Dao {
 	// regardless of the working directory (e.g. teamgramd/bin/).
 	cacheDir := "data/langpack"
 	if exe, err := os.Executable(); err == nil {
-		root := filepath.Join(filepath.Dir(exe), "../..")
-		candidate := filepath.Join(root, "data/langpack")
-		if info, err2 := os.Stat(candidate); err2 == nil && info.IsDir() {
-			cacheDir = candidate
+		// Try one level up first (Docker: /app/bin -> /app)
+		// then two levels up (local dev: teamgramd/bin -> project root)
+		for _, rel := range []string{"..", "../.."} {
+			root := filepath.Join(filepath.Dir(exe), rel)
+			candidate := filepath.Join(root, "data/langpack")
+			if info, err2 := os.Stat(candidate); err2 == nil && info.IsDir() {
+				cacheDir = candidate
+				break
+			}
 		}
 	}
 	os.MkdirAll(cacheDir, 0755)
