@@ -18604,3 +18604,10 @@ Error: %8$@";
 "Contacts.EmptyState.Text" = "คุณยังไม่มีผู้ติดต่อ";
 "CustomAuth.ConfirmPassword" = "ยืนยันรหัสผ่าน";
 "CustomAuth.Error.PasswordMismatch" = "รหัสผ่านไม่ตรงกัน";
+
+"CustomAuth.Error.AgreeTerms" = "Please read and agree to the Terms of Service and Privacy Policy";
+"CustomAuth.AgreeTermsPrefix" = "I have read and agree to PChat's ";
+"CustomAuth.AgreeTermsOfService" = "Terms of Service";
+"CustomAuth.AgreeTermsAnd" = " and ";
+"CustomAuth.AgreePrivacyPolicy" = "Privacy Policy";
+"CustomAuth.TermsOfServiceUrl" = "https://photon-chat.github.io/pchat-site/tos.html";
