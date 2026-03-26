@@ -13,6 +13,22 @@ func int32Value(v int32) *types.Int32Value {
 	return &types.Int32Value{Value: v}
 }
 
+// argb adds 0xFF alpha to a 24-bit RGB color, producing a signed int32 ARGB value.
+// The iOS client uses UIColor(argb:) which reads bits 24-31 as alpha,
+// so colors without 0xFF prefix appear fully transparent.
+func argb(rgb int32) int32 {
+	return int32(uint32(0xFF000000) | uint32(rgb))
+}
+
+// argbSlice applies argb() to each element
+func argbSlice(colors []int32) []int32 {
+	out := make([]int32, len(colors))
+	for i, c := range colors {
+		out[i] = argb(c)
+	}
+	return out
+}
+
 var (
 	baseDay     = mtproto.MakeTLBaseThemeDay(&mtproto.BaseTheme{}).To_BaseTheme()
 	baseClassic = mtproto.MakeTLBaseThemeClassic(&mtproto.BaseTheme{}).To_BaseTheme()
@@ -22,18 +38,19 @@ var (
 
 // makeGradientWallpaper creates a wallPaperNoFile with gradient colors for use in ThemeSettings
 func makeGradientWallpaper(colors []int32) *mtproto.WallPaper {
+	c := argbSlice(colors)
 	settings := &mtproto.WallPaperSettings{
-		BackgroundColor: int32Value(colors[0]),
+		BackgroundColor: int32Value(c[0]),
 	}
-	if len(colors) > 1 {
-		settings.SecondBackgroundColor = int32Value(colors[1])
+	if len(c) > 1 {
+		settings.SecondBackgroundColor = int32Value(c[1])
 		settings.Rotation = int32Value(0) // must be set: shares flags.4 with SecondBackgroundColor
 	}
-	if len(colors) > 2 {
-		settings.ThirdBackgroundColor = int32Value(colors[2])
+	if len(c) > 2 {
+		settings.ThirdBackgroundColor = int32Value(c[2])
 	}
-	if len(colors) > 3 {
-		settings.FourthBackgroundColor = int32Value(colors[3])
+	if len(c) > 3 {
+		settings.FourthBackgroundColor = int32Value(c[3])
 	}
 	return mtproto.MakeTLWallPaperNoFile(&mtproto.WallPaper{
 		Id:       0,
@@ -45,8 +62,8 @@ func makeGradientWallpaper(colors []int32) *mtproto.WallPaper {
 func makeSettings(base *mtproto.BaseTheme, accent int32, msgColors []int32, wallpaperColors []int32) *mtproto.ThemeSettings {
 	ts := &mtproto.ThemeSettings{
 		BaseTheme:     base,
-		AccentColor:   accent,
-		MessageColors: msgColors,
+		AccentColor:   argb(accent),
+		MessageColors: argbSlice(msgColors),
 	}
 	if len(wallpaperColors) > 0 {
 		ts.Wallpaper = makeGradientWallpaper(wallpaperColors)

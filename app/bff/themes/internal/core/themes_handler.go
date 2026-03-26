@@ -26,6 +26,21 @@ func (c *ThemesCore) AccountGetChatThemes(in *mtproto.TLAccountGetChatThemes) (*
 
 // AccountGetTheme
 func (c *ThemesCore) AccountGetTheme(in *mtproto.TLAccountGetTheme) (*mtproto.Theme, error) {
+	if in.Theme != nil {
+		id := in.Theme.Id
+		slug := in.Theme.Slug
+
+		for _, t := range defaultAppearanceThemes() {
+			if (id != 0 && t.Id == id) || (slug != "" && t.Slug == slug) {
+				return t, nil
+			}
+		}
+		for _, t := range defaultChatThemes() {
+			if (id != 0 && t.Id == id) || (slug != "" && t.Slug == slug) {
+				return t, nil
+			}
+		}
+	}
 	return nil, mtproto.ErrThemeInvalid
 }
 
