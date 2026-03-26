@@ -51,6 +51,7 @@ type Config struct {
 	StickersMysql             sqlx.Config                `json:",optional"`
 	StickersMinio             MinioConfig                `json:",optional"`
 	FeaturedStickerSets       []string                   `json:",optional"`
+	FeaturedEmojiStickerSets  []string                   `json:",optional"`
 	AutoGroupMySQL            *sqlx.Config               `json:",optional"`
 	SystemAdminUserId         int64                      `json:",default=777001"`
 	TestCityName              string                     `json:",optional"`

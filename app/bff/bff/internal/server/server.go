@@ -325,23 +325,24 @@ func (s *Server) Initialize() error {
 
 		// stickers_helper
 		if c.TelegramBotToken != "" {
-			mtproto.RegisterRPCStickersServer(
-				grpcServer,
-				stickers_helper.New(stickers_helper.Config{
-					RpcServerConf:       c.RpcServerConf,
-					TelegramBotToken:    c.TelegramBotToken,
-					FeaturedStickerSets: c.FeaturedStickerSets,
-					Mysql:               c.StickersMysql,
-					Minio: stickers_helper.MinioConfig{
-						Endpoint:        c.StickersMinio.Endpoint,
-						AccessKeyID:     c.StickersMinio.AccessKeyID,
-						SecretAccessKey: c.StickersMinio.SecretAccessKey,
-						UseSSL:          c.StickersMinio.UseSSL,
-					},
-					IdgenClient: c.IdgenClient,
-					MediaClient: c.MediaClient,
-					DfsClient:   c.DfsClient,
-				}))
+			stickersSvc := stickers_helper.New(stickers_helper.Config{
+				RpcServerConf:            c.RpcServerConf,
+				TelegramBotToken:         c.TelegramBotToken,
+				FeaturedStickerSets:      c.FeaturedStickerSets,
+				FeaturedEmojiStickerSets: c.FeaturedEmojiStickerSets,
+				Mysql:                    c.StickersMysql,
+				Minio: stickers_helper.MinioConfig{
+					Endpoint:        c.StickersMinio.Endpoint,
+					AccessKeyID:     c.StickersMinio.AccessKeyID,
+					SecretAccessKey: c.StickersMinio.SecretAccessKey,
+					UseSSL:          c.StickersMinio.UseSSL,
+				},
+				IdgenClient: c.IdgenClient,
+				MediaClient: c.MediaClient,
+				DfsClient:   c.DfsClient,
+			})
+			mtproto.RegisterRPCStickersServer(grpcServer, stickersSvc)
+			mtproto.RegisterRPCCustomEmojisServer(grpcServer, stickersSvc)
 		}
 
 		// langpack_helper

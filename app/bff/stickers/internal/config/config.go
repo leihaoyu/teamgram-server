@@ -15,11 +15,12 @@ type MinioConfig struct {
 type Config struct {
 	zrpc.RpcServerConf
 
-	TelegramBotToken    string
-	FeaturedStickerSets []string `json:",optional"`
-	Mysql               sqlx.Config
-	Minio               MinioConfig
-	IdgenClient         zrpc.RpcClientConf
-	MediaClient         zrpc.RpcClientConf
-	DfsClient           zrpc.RpcClientConf
+	TelegramBotToken         string
+	FeaturedStickerSets      []string `json:",optional"`
+	FeaturedEmojiStickerSets []string `json:",optional"`
+	Mysql                    sqlx.Config
+	Minio                    MinioConfig
+	IdgenClient              zrpc.RpcClientConf
+	MediaClient              zrpc.RpcClientConf
+	DfsClient                zrpc.RpcClientConf
 }

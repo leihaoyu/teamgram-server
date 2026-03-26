@@ -278,13 +278,6 @@ func (c *BFFProxyClient) TryReturnFakeRpcResult(object mtproto.TLObject) (mtprot
 			Hash: 0,
 			Sets: []*mtproto.StickerSet{},
 		}).To_Messages_AllStickers(), nil
-	case "TLMessagesGetFeaturedEmojiStickers":
-		return mtproto.MakeTLMessagesFeaturedStickers(&mtproto.Messages_FeaturedStickers{
-			Count:  0,
-			Hash:   0,
-			Sets:   []*mtproto.StickerSetCovered{},
-			Unread: []int64{},
-		}).To_Messages_FeaturedStickers(), nil
 
 	// emoji statuses
 	case "TLAccountGetRecentEmojiStatuses":

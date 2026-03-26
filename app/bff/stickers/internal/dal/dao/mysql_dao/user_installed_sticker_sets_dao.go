@@ -127,16 +127,25 @@ func (dao *UserInstalledStickerSetsDAO) SelectByUserAndSetId(ctx context.Context
 
 // SelectPopularSetIds returns the most popular sticker set_ids ranked by install count.
 func (dao *UserInstalledStickerSetsDAO) SelectPopularSetIds(ctx context.Context, limit int32) (rList []int64, err error) {
+	return dao.selectPopularSetIdsByType(ctx, 0, limit)
+}
+
+// SelectPopularEmojiSetIds returns the most popular emoji sticker set_ids ranked by install count.
+func (dao *UserInstalledStickerSetsDAO) SelectPopularEmojiSetIds(ctx context.Context, limit int32) (rList []int64, err error) {
+	return dao.selectPopularSetIdsByType(ctx, 2, limit)
+}
+
+func (dao *UserInstalledStickerSetsDAO) selectPopularSetIdsByType(ctx context.Context, setType int32, limit int32) (rList []int64, err error) {
 	type popularRow struct {
 		SetId int64 `db:"set_id"`
 	}
 	var (
-		query  = "SELECT set_id FROM user_installed_sticker_sets WHERE deleted = 0 AND archived = 0 AND set_type = 0 GROUP BY set_id ORDER BY COUNT(DISTINCT user_id) DESC LIMIT ?"
+		query  = "SELECT set_id FROM user_installed_sticker_sets WHERE deleted = 0 AND archived = 0 AND set_type = ? GROUP BY set_id ORDER BY COUNT(DISTINCT user_id) DESC LIMIT ?"
 		values []popularRow
 	)
-	err = dao.db.QueryRowsPartial(ctx, &values, query, limit)
+	err = dao.db.QueryRowsPartial(ctx, &values, query, setType, limit)
 	if err != nil {
-		logx.WithContext(ctx).Errorf("queryx in SelectPopularSetIds, error: %v", err)
+		logx.WithContext(ctx).Errorf("queryx in selectPopularSetIdsByType(%d), error: %v", setType, err)
 		return
 	}
 	rList = make([]int64, len(values))

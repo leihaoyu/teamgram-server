@@ -11,22 +11,45 @@ import (
 
 // MessagesGetFeaturedStickers returns popular/featured sticker sets.
 func (c *StickersCore) MessagesGetFeaturedStickers(in *mtproto.TLMessagesGetFeaturedStickers) (*mtproto.Messages_FeaturedStickers, error) {
+	return c.getFeaturedStickersByType(in.Hash, 0)
+}
+
+// MessagesGetFeaturedEmojiStickers returns popular/featured emoji sticker sets.
+func (c *StickersCore) MessagesGetFeaturedEmojiStickers(in *mtproto.TLMessagesGetFeaturedEmojiStickers) (*mtproto.Messages_FeaturedStickers, error) {
+	return c.getFeaturedStickersByType(in.Hash, 2)
+}
+
+func (c *StickersCore) getFeaturedStickersByType(clientHash int64, setType int32) (*mtproto.Messages_FeaturedStickers, error) {
 	const featuredLimit int32 = 20
 
 	// 1. Get popular set_ids from install data
-	popularSetIds, err := c.svcCtx.Dao.UserInstalledStickerSetsDAO.SelectPopularSetIds(c.ctx, featuredLimit)
+	var (
+		popularSetIds []int64
+		err           error
+	)
+	if setType == 2 {
+		popularSetIds, err = c.svcCtx.Dao.UserInstalledStickerSetsDAO.SelectPopularEmojiSetIds(c.ctx, featuredLimit)
+	} else {
+		popularSetIds, err = c.svcCtx.Dao.UserInstalledStickerSetsDAO.SelectPopularSetIds(c.ctx, featuredLimit)
+	}
 	if err != nil {
-		c.Logger.Errorf("messages.getFeaturedStickers - SelectPopularSetIds error: %v", err)
+		c.Logger.Errorf("getFeaturedStickersByType(%d) - SelectPopularSetIds error: %v", setType, err)
 		return nil, mtproto.ErrInternelServerError
 	}
 
 	// 2. Cold-start fallback: supplement with configured set names
 	if len(popularSetIds) < int(featuredLimit) {
-		popularSetIds = c.supplementWithConfiguredSets(popularSetIds, int(featuredLimit))
+		var configuredNames []string
+		if setType == 2 {
+			configuredNames = c.svcCtx.Config.FeaturedEmojiStickerSets
+		} else {
+			configuredNames = c.svcCtx.Config.FeaturedStickerSets
+		}
+		popularSetIds = c.supplementWithConfiguredSets(popularSetIds, int(featuredLimit), configuredNames)
 	}
 
-	// 3. Exclude user's installed sets to avoid stableId collision on iOS
-	installedSetIds := c.getInstalledSetIdMap()
+	// 3. Exclude user's installed sets
+	installedSetIds := c.getInstalledSetIdMap(setType)
 	filteredIds := make([]int64, 0, len(popularSetIds))
 	for _, id := range popularSetIds {
 		if !installedSetIds[id] {
@@ -46,7 +69,7 @@ func (c *StickersCore) MessagesGetFeaturedStickers(in *mtproto.TLMessagesGetFeat
 	// 4. Build StickerSetCovered for each set
 	sets, err := c.buildStickerSetsCovered(filteredIds)
 	if err != nil {
-		c.Logger.Errorf("messages.getFeaturedStickers - buildStickerSetsCovered error: %v", err)
+		c.Logger.Errorf("getFeaturedStickersByType(%d) - buildStickerSetsCovered error: %v", setType, err)
 		return nil, mtproto.ErrInternelServerError
 	}
 
@@ -60,7 +83,7 @@ func (c *StickersCore) MessagesGetFeaturedStickers(in *mtproto.TLMessagesGetFeat
 	hash := int64(hashAcc)
 
 	// 6. Check NotModified
-	if in.Hash != 0 && in.Hash == hash {
+	if clientHash != 0 && clientHash == hash {
 		return mtproto.MakeTLMessagesFeaturedStickersNotModified(nil).To_Messages_FeaturedStickers(), nil
 	}
 
@@ -73,8 +96,7 @@ func (c *StickersCore) MessagesGetFeaturedStickers(in *mtproto.TLMessagesGetFeat
 }
 
 // supplementWithConfiguredSets adds configured featured set short_names not already in the list.
-func (c *StickersCore) supplementWithConfiguredSets(existingIds []int64, maxLen int) []int64 {
-	configuredNames := c.svcCtx.Config.FeaturedStickerSets
+func (c *StickersCore) supplementWithConfiguredSets(existingIds []int64, maxLen int, configuredNames []string) []int64 {
 	if len(configuredNames) == 0 {
 		return existingIds
 	}
@@ -129,8 +151,8 @@ func (c *StickersCore) supplementWithConfiguredSets(existingIds []int64, maxLen 
 }
 
 // getInstalledSetIdMap returns the current user's installed set_ids as a map for fast lookup.
-func (c *StickersCore) getInstalledSetIdMap() map[int64]bool {
-	installedRows, err := c.svcCtx.Dao.UserInstalledStickerSetsDAO.SelectByUserAndType(c.ctx, c.MD.UserId, 0)
+func (c *StickersCore) getInstalledSetIdMap(setType int32) map[int64]bool {
+	installedRows, err := c.svcCtx.Dao.UserInstalledStickerSetsDAO.SelectByUserAndType(c.ctx, c.MD.UserId, setType)
 	if err != nil {
 		c.Logger.Errorf("getInstalledSetIdMap - error: %v", err)
 		return nil

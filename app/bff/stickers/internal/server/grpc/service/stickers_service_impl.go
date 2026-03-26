@@ -61,6 +61,12 @@ func (s *Service) MessagesGetFeaturedStickers(ctx context.Context, request *mtpr
 	return c.MessagesGetFeaturedStickers(request)
 }
 
+func (s *Service) MessagesGetFeaturedEmojiStickers(ctx context.Context, request *mtproto.TLMessagesGetFeaturedEmojiStickers) (*mtproto.Messages_FeaturedStickers, error) {
+	c := core.New(ctx, s.svcCtx)
+	c.Logger.Debugf("messages.getFeaturedEmojiStickers - metadata: %s, request: %s", c.MD, request)
+	return c.MessagesGetFeaturedEmojiStickers(request)
+}
+
 func (s *Service) MessagesReadFeaturedStickers(ctx context.Context, request *mtproto.TLMessagesReadFeaturedStickers) (*mtproto.Bool, error) {
 	return mtproto.BoolTrue, nil
 }

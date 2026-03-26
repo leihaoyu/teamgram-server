@@ -46,7 +46,7 @@ func (c *StickersCore) MessagesSearchStickerSets(in *mtproto.TLMessagesSearchSti
 	}
 
 	// 3. Exclude user's installed sets to avoid stableId collision on iOS
-	installedSetIds := c.getInstalledSetIdMap()
+	installedSetIds := c.getInstalledSetIdMap(0)
 
 	setIds := make([]int64, 0, len(searchResults))
 	for i := range searchResults {
