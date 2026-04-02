@@ -111,10 +111,11 @@ func (m *CityActivity) Decode(dBuf *DecodeBuf) error {
 	// photos vector
 	c18 := dBuf.Int()
 	if c18 != int32(CRC32_vector) {
-		// err = fmt.Errorf("expected vector for photos, got: %d", c18)
+		fmt.Printf("[DEBUG] CityActivity.Decode: photos vector CRC mismatch, got=%d, expected=%d\n", c18, int32(CRC32_vector))
 		// backward compat: older data without photos field
 	} else {
 		l18 := dBuf.Int()
+		fmt.Printf("[DEBUG] CityActivity.Decode: photos vector len=%d\n", l18)
 		m.Photos = make([]*Photo, l18)
 		for i := int32(0); i < l18; i++ {
 			m.Photos[i] = &Photo{}
@@ -123,6 +124,7 @@ func (m *CityActivity) Decode(dBuf *DecodeBuf) error {
 		// chat_id (appended after photos)
 		if dBuf.GetError() == nil {
 			m.ChatId = dBuf.Long()
+			fmt.Printf("[DEBUG] CityActivity.Decode: chatId=%d\n", m.ChatId)
 		}
 	}
 
@@ -351,11 +353,14 @@ func (m *TLCityActivityCreateActivity) Decode(dBuf *DecodeBuf) error {
 		m.MaxParticipants = dBuf.Int()
 		// photo_ids vector
 		c10 := dBuf.Int()
+		fmt.Printf("[DEBUG] createActivity.Decode: c10=%d, CRC32_vector=%d, match=%v\n", c10, int32(CRC32_vector), c10 == int32(CRC32_vector))
 		if c10 == int32(CRC32_vector) {
 			l10 := dBuf.Int()
+			fmt.Printf("[DEBUG] createActivity.Decode: vector len=%d\n", l10)
 			m.PhotoIds = make([]int64, l10)
 			for i := int32(0); i < l10; i++ {
 				m.PhotoIds[i] = dBuf.Long()
+				fmt.Printf("[DEBUG] createActivity.Decode: photoIds[%d]=%d\n", i, m.PhotoIds[i])
 			}
 		}
 		// is_global
@@ -363,6 +368,8 @@ func (m *TLCityActivityCreateActivity) Decode(dBuf *DecodeBuf) error {
 		m11.Decode(dBuf)
 		m.IsGlobal = m11
 		return dBuf.GetError()
+	default:
+		fmt.Printf("[DEBUG] createActivity.Decode: constructor mismatch! got=%d (0x%x)\n", m.Constructor, m.Constructor)
 	}
 	return dBuf.GetError()
 }
