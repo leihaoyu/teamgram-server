@@ -7,5 +7,6 @@ import (
 
 type Config struct {
 	zrpc.RpcServerConf
-	Mysql *sqlx.Config `json:",optional"`
+	Mysql        *sqlx.Config `json:",optional"`
+	TestCityName string       `json:",optional"`
 }

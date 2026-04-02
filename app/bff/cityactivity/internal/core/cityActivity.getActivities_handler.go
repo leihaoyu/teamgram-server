@@ -7,6 +7,13 @@ import (
 
 func (c *CityActivityCore) CityActivityGetActivities(in *mtproto.TLCityActivityGetActivities) (*mtproto.CityActivity_Activities, error) {
 	city := in.GetCity()
+
+	// If client didn't specify a city, detect from IP
+	if city == "" && c.MD != nil && c.MD.ClientAddr != "" {
+		city = c.svcCtx.Dao.GetCityByIp(c.MD.ClientAddr)
+		c.Logger.Infof("cityActivity.getActivities - detected city: %q from IP: %s", city, c.MD.ClientAddr)
+	}
+
 	offset := in.GetOffset()
 	limit := in.GetLimit()
 	if limit <= 0 || limit > 50 {

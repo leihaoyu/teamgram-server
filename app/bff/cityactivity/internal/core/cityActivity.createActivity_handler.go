@@ -9,12 +9,17 @@ func (c *CityActivityCore) CityActivityCreateActivity(in *mtproto.TLCityActivity
 	if c.MD == nil {
 		return nil, mtproto.ErrInternelServerError
 	}
+	city := in.GetCity()
+	if city == "" && c.MD.ClientAddr != "" {
+		city = c.svcCtx.Dao.GetCityByIp(c.MD.ClientAddr)
+	}
+
 	a := &dao.Activity{
 		UserId:          c.MD.UserId,
 		Title:           in.GetTitle(),
 		Description:     in.GetDescription(),
 		PhotoId:         in.GetPhotoId(),
-		City:            in.GetCity(),
+		City:            city,
 		StartTime:       in.GetStartTime(),
 		EndTime:         in.GetEndTime(),
 		MaxParticipants: in.GetMaxParticipants(),

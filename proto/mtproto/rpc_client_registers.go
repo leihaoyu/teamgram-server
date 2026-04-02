@@ -616,6 +616,14 @@ var rpcContextRegisters = map[string]RPCContextTuple{
 	"TLMessagesGetWebPage8D9692A3":                 RPCContextTuple{"/mtproto.RPCWebPage/messages_getWebPage8D9692A3", func() interface{} { return new(Messages_WebPage) }},
 	"TLMessagesGetWebPage32CA8F91":                 RPCContextTuple{"/mtproto.RPCWebPage/messages_getWebPage32CA8F91", func() interface{} { return new(WebPage) }},
 	"TLBizInvokeBizDataRaw":                        RPCContextTuple{"/mtproto.RPCBiz/biz_invokeBizDataRaw", func() interface{} { return new(BizDataRaw) }},
+	// CityActivity
+	"TLCityActivityGetActivities":                  RPCContextTuple{"/mtproto.RPCCityActivity/cityActivity_getActivities", func() interface{} { return new(CityActivity_Activities) }},
+	"TLCityActivityGetActivity":                    RPCContextTuple{"/mtproto.RPCCityActivity/cityActivity_getActivity", func() interface{} { return new(CityActivity) }},
+	"TLCityActivityCreateActivity":                 RPCContextTuple{"/mtproto.RPCCityActivity/cityActivity_createActivity", func() interface{} { return new(CityActivity) }},
+	"TLCityActivityEditActivity":                   RPCContextTuple{"/mtproto.RPCCityActivity/cityActivity_editActivity", func() interface{} { return new(CityActivity) }},
+	"TLCityActivityDeleteActivity":                 RPCContextTuple{"/mtproto.RPCCityActivity/cityActivity_deleteActivity", func() interface{} { return new(Bool) }},
+	"TLCityActivityJoinActivity":                   RPCContextTuple{"/mtproto.RPCCityActivity/cityActivity_joinActivity", func() interface{} { return new(Bool) }},
+	"TLCityActivityLeaveActivity":                  RPCContextTuple{"/mtproto.RPCCityActivity/cityActivity_leaveActivity", func() interface{} { return new(Bool) }},
 }
 
 func FindRPCContextTuple(t interface{}) *RPCContextTuple {

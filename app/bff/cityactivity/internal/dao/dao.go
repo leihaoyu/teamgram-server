@@ -2,12 +2,22 @@ package dao
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"net"
 	"time"
 
+	"github.com/oschwald/geoip2-golang"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/cityactivity/internal/config"
+	"github.com/zeromicro/go-zero/core/logx"
 )
+
+var mmdb2 string
+
+func init() {
+	flag.StringVar(&mmdb2, "mmdb2", "./GeoLite2-City.mmdb", "mmdb path for cityactivity")
+}
 
 type Activity struct {
 	Id               int64  `db:"id"`
@@ -37,27 +47,99 @@ type ActivityParticipant struct {
 }
 
 type Dao struct {
-	db *sqlx.DB
+	db           *sqlx.DB
+	MMDB         *geoip2.Reader
+	TestCityName string
 }
 
 func New(c config.Config) *Dao {
-	return &Dao{
-		db: sqlx.NewMySQL(c.Mysql),
+	d := &Dao{
+		db:           sqlx.NewMySQL(c.Mysql),
+		TestCityName: c.TestCityName,
 	}
+
+	MMDB, err := geoip2.Open(mmdb2)
+	if err != nil {
+		logx.Errorf("cityactivity open mmdb(%s) error: %v", mmdb2, err)
+	} else {
+		d.MMDB = MMDB
+	}
+
+	return d
+}
+
+// countryToLocale maps ISO 3166-1 country codes to GeoIP2 locale keys.
+var countryToLocale = map[string]string{
+	"CN": "zh-CN", "TW": "zh-CN", "HK": "zh-CN", "MO": "zh-CN", "SG": "zh-CN",
+	"JP": "ja",
+	"DE": "de", "AT": "de", "CH": "de", "LI": "de",
+	"ES": "es", "MX": "es", "AR": "es", "CO": "es", "CL": "es",
+	"PE": "es", "VE": "es", "EC": "es", "GT": "es", "CU": "es",
+	"BO": "es", "DO": "es", "HN": "es", "PY": "es", "SV": "es",
+	"NI": "es", "CR": "es", "PA": "es", "UY": "es",
+	"FR": "fr", "BE": "fr", "LU": "fr",
+	"BR": "pt-BR", "PT": "pt-BR",
+	"RU": "ru", "BY": "ru", "KZ": "ru", "KG": "ru",
+}
+
+// GetCityByIp resolves the client IP to a city name using GeoIP2.
+// Returns the city name in the user's locale (zh-CN for Chinese IPs, etc.)
+// Falls back to TestCityName if configured and MMDB lookup fails.
+func (d *Dao) GetCityByIp(ip string) string {
+	if d.MMDB != nil {
+		r, err := d.MMDB.City(net.ParseIP(ip))
+		if err != nil {
+			logx.Errorf("GetCityByIp - ip: %s, error: %v", ip, err)
+		} else {
+			countryCode := r.Country.IsoCode
+			locale := "en"
+			if l, ok := countryToLocale[countryCode]; ok {
+				locale = l
+			}
+
+			if name, ok := r.City.Names[locale]; ok && name != "" {
+				logx.Infof("GetCityByIp - ip: %s, city: %s (locale: %s)", ip, name, locale)
+				return name
+			}
+			if name, ok := r.City.Names["en"]; ok && name != "" {
+				logx.Infof("GetCityByIp - ip: %s, city: %s (en)", ip, name)
+				return name
+			}
+		}
+	}
+
+	// Fallback to test city (for dev environments)
+	if d.TestCityName != "" {
+		return d.TestCityName
+	}
+
+	return ""
 }
 
 func (d *Dao) GetActivitiesByCity(ctx context.Context, city string, offset, limit int32) ([]*Activity, int32, error) {
 	var activities []*Activity
-	query := "SELECT * FROM activities WHERE (city = ? OR is_global = 1) AND status = 1 ORDER BY is_global DESC, created_at DESC LIMIT ?, ?"
-	err := d.db.QueryRowsPartial(ctx, &activities, query, city, offset, limit)
-	if err != nil {
-		return nil, 0, err
+	var err error
+	var count int32
+
+	if city == "" {
+		query := "SELECT * FROM activities WHERE status = 1 ORDER BY is_global DESC, created_at DESC LIMIT ?, ?"
+		err = d.db.QueryRowsPartial(ctx, &activities, query, offset, limit)
+		if err != nil {
+			return nil, 0, err
+		}
+		countQuery := "SELECT COUNT(*) FROM activities WHERE status = 1"
+		_ = d.db.QueryRow(ctx, &count, countQuery)
+	} else {
+		query := "SELECT * FROM activities WHERE (city = ? OR is_global = 1) AND status = 1 ORDER BY is_global DESC, created_at DESC LIMIT ?, ?"
+		err = d.db.QueryRowsPartial(ctx, &activities, query, city, offset, limit)
+		if err != nil {
+			return nil, 0, err
+		}
+		countQuery := "SELECT COUNT(*) FROM activities WHERE (city = ? OR is_global = 1) AND status = 1"
+		_ = d.db.QueryRow(ctx, &count, countQuery, city)
 	}
 
-	var count int32
-	countQuery := "SELECT COUNT(*) FROM activities WHERE (city = ? OR is_global = 1) AND status = 1"
-	err = d.db.QueryRow(ctx, &count, countQuery, city)
-	if err != nil {
+	if count == 0 {
 		count = int32(len(activities))
 	}
 

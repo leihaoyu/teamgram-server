@@ -384,6 +384,7 @@ func (s *Server) Initialize() error {
 			cityactivity_helper.New(cityactivity_helper.Config{
 				RpcServerConf: c.RpcServerConf,
 				Mysql:         c.CityActivityMySQL,
+				TestCityName:  c.TestCityName,
 			}))
 	})
 

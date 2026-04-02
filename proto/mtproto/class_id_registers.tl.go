@@ -10759,6 +10759,42 @@ var clazzIdRegisters2 = map[int32]func() TLObject{
 			Constructor: 1511592262,
 		}
 	},
+	// CityActivity
+	2048265219: func() TLObject { // 0x7a1b2c03
+		return &TLCityActivityGetActivities{
+			Constructor: 2048265219,
+		}
+	},
+	2048265220: func() TLObject { // 0x7a1b2c04
+		return &TLCityActivityGetActivity{
+			Constructor: 2048265220,
+		}
+	},
+	2048265221: func() TLObject { // 0x7a1b2c05
+		return &TLCityActivityCreateActivity{
+			Constructor: 2048265221,
+		}
+	},
+	2048265222: func() TLObject { // 0x7a1b2c06
+		return &TLCityActivityEditActivity{
+			Constructor: 2048265222,
+		}
+	},
+	2048265223: func() TLObject { // 0x7a1b2c07
+		return &TLCityActivityDeleteActivity{
+			Constructor: 2048265223,
+		}
+	},
+	2048265224: func() TLObject { // 0x7a1b2c08
+		return &TLCityActivityJoinActivity{
+			Constructor: 2048265224,
+		}
+	},
+	2048265225: func() TLObject { // 0x7a1b2c09
+		return &TLCityActivityLeaveActivity{
+			Constructor: 2048265225,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) TLObject {
