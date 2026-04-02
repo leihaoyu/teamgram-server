@@ -55,19 +55,23 @@ func (c *CityActivityCore) CityActivityCreateActivity(in *mtproto.TLCityActivity
 	}
 
 	// Auto-create group chat
-	fmt.Printf("[DEBUG] createActivity: about to create chat, userId=%d\n", c.MD.UserId)
+	fmt.Printf("[DEBUG] createActivity: about to create chat, userId=%d, title=%s\n", c.MD.UserId, in.GetTitle())
 	chat, err := c.svcCtx.Dao.ChatCreateChat2(c.ctx, &chatpb.TLChatCreateChat2{
 		CreatorId:  c.MD.UserId,
 		UserIdList: []int64{},
 		Title:      in.GetTitle(),
 	})
+	fmt.Printf("[DEBUG] createActivity: ChatCreateChat2 returned, err=%v, chat=%v\n", err, chat)
 	if err != nil {
 		fmt.Printf("[DEBUG] createActivity: ChatCreateChat2 error: %v\n", err)
 	} else if chat != nil && chat.Chat != nil {
+		fmt.Printf("[DEBUG] createActivity: chat created, chatId=%d\n", chat.Chat.Id)
 		a.ChatId = chat.Chat.Id
 		if err2 := c.svcCtx.Dao.UpdateActivityChatId(c.ctx, id, chat.Chat.Id); err2 != nil {
 			c.Logger.Errorf("cityActivity.createActivity - update chat_id error: %v", err2)
 		}
+	} else {
+		fmt.Printf("[DEBUG] createActivity: chat or chat.Chat is nil\n")
 	}
 
 	// Creator auto-join activity
@@ -92,5 +96,6 @@ func (c *CityActivityCore) CityActivityCreateActivity(in *mtproto.TLCityActivity
 
 	result := activityToProto(a, true)
 	result.Photos = photos
+	fmt.Printf("[DEBUG] createActivity: DONE, activityId=%d, chatId=%d, photoCount=%d, isGlobal=%d\n", a.Id, a.ChatId, len(photos), a.IsGlobal)
 	return result, nil
 }
