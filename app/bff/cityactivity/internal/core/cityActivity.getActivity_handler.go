@@ -32,15 +32,11 @@ func (c *CityActivityCore) CityActivityGetActivity(in *mtproto.TLCityActivityGet
 		var photos []*mtproto.Photo
 		for _, pid := range photoIds {
 			photo, err3 := c.svcCtx.Dao.MediaGetPhoto(c.ctx, &media.TLMediaGetPhoto{PhotoId: pid})
-			if err3 != nil {
-				c.Logger.Errorf("cityActivity.getActivity - MediaGetPhoto(%d) error: %v", pid, err3)
-			} else if photo != nil {
+			if err3 == nil && photo != nil {
 				photos = append(photos, photo)
 			}
 		}
 		result.Photos = photos
-	} else if err2 != nil {
-		c.Logger.Errorf("cityActivity.getActivity - GetActivityPhotoIds error: %v", err2)
 	}
 
 	return result, nil

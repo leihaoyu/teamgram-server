@@ -203,7 +203,7 @@ func (d *Dao) JoinActivity(ctx context.Context, activityId, userId int64, city s
 		return err
 	}
 
-	if activity.IsGlobal == 0 && activity.City != "" && city != "" && activity.City != city {
+	if activity.IsGlobal == 0 && activity.City != city {
 		return fmt.Errorf("city mismatch")
 	}
 
