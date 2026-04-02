@@ -118,6 +118,11 @@ func checkRpcWithoutLogin(tl mtproto.TLObject) bool {
 	case *mtproto.TLJsonObject:
 		return true
 
+	// cityActivity (allow guest browsing without login)
+	case *mtproto.TLCityActivityGetActivities,
+		*mtproto.TLCityActivityGetActivity:
+		return true
+
 	default:
 		return false
 	}
