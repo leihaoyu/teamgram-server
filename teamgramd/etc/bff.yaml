@@ -102,3 +102,10 @@ DevicesMySQL:
   Active: 8
   Idle: 8
   IdleTimeout: 4h
+
+# 城市活动 MySQL 配置
+CityActivityMySQL:
+  DSN: root:@tcp(127.0.0.1:3306)/teamgram?charset=utf8mb4&parseTime=true
+  Active: 8
+  Idle: 8
+  IdleTimeout: 4h

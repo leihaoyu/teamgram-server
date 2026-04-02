@@ -2380,7 +2380,7 @@ func StatusErrEqual(err1, err2 error) bool {
 	return status1.Code() == status2.Code() && status1.Message() == status2.Message()
 }
 
-//-500
+// -500
 var (
 //// ErrInvalid MsgResendReq Query
 //// | -500 | Invalid msg_resend_req query | Invalid msg_resend_req query. |
