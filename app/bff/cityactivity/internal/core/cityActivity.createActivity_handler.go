@@ -1,6 +1,8 @@
 package core
 
 import (
+	"fmt"
+
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/cityactivity/internal/dao"
 	chatpb "github.com/teamgram/teamgram-server/app/service/biz/chat/chat"
@@ -42,6 +44,7 @@ func (c *CityActivityCore) CityActivityCreateActivity(in *mtproto.TLCityActivity
 
 	// Save activity media (photo_ids)
 	photoIds := in.GetPhotoIds()
+	fmt.Printf("[DEBUG] createActivity: photoIds=%v, len=%d\n", photoIds, len(photoIds))
 	if len(photoIds) > 5 {
 		photoIds = photoIds[:5]
 	}
@@ -52,13 +55,14 @@ func (c *CityActivityCore) CityActivityCreateActivity(in *mtproto.TLCityActivity
 	}
 
 	// Auto-create group chat
+	fmt.Printf("[DEBUG] createActivity: about to create chat, userId=%d\n", c.MD.UserId)
 	chat, err := c.svcCtx.Dao.ChatCreateChat2(c.ctx, &chatpb.TLChatCreateChat2{
 		CreatorId:  c.MD.UserId,
 		UserIdList: []int64{},
 		Title:      in.GetTitle(),
 	})
 	if err != nil {
-		c.Logger.Errorf("cityActivity.createActivity - create chat error: %v", err)
+		fmt.Printf("[DEBUG] createActivity: ChatCreateChat2 error: %v\n", err)
 	} else if chat != nil && chat.Chat != nil {
 		a.ChatId = chat.Chat.Id
 		if err2 := c.svcCtx.Dao.UpdateActivityChatId(c.ctx, id, chat.Chat.Id); err2 != nil {
@@ -75,12 +79,12 @@ func (c *CityActivityCore) CityActivityCreateActivity(in *mtproto.TLCityActivity
 	// Resolve photos for response
 	var photos []*mtproto.Photo
 	for _, pid := range photoIds {
-		c.Logger.Infof("cityActivity.createActivity - resolving photo id: %d", pid)
+		fmt.Printf("[DEBUG] createActivity: resolving photo id: %d\n", pid)
 		photo, err3 := c.svcCtx.Dao.MediaGetPhoto(c.ctx, &media.TLMediaGetPhoto{PhotoId: pid})
 		if err3 != nil {
-			c.Logger.Errorf("cityActivity.createActivity - MediaGetPhoto(%d) error: %v", pid, err3)
+			fmt.Printf("[DEBUG] createActivity: MediaGetPhoto(%d) error: %v\n", pid, err3)
 		} else if photo == nil {
-			c.Logger.Errorf("cityActivity.createActivity - MediaGetPhoto(%d) returned nil", pid)
+			fmt.Printf("[DEBUG] createActivity: MediaGetPhoto(%d) returned nil\n", pid)
 		} else {
 			photos = append(photos, photo)
 		}
