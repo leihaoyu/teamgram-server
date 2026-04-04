@@ -6,7 +6,9 @@ package mtproto
 import (
 	context "context"
 	fmt "fmt"
+	io "io"
 	math "math"
+	math_bits "math/bits"
 
 	proto "github.com/gogo/protobuf/proto"
 	grpc "google.golang.org/grpc"
@@ -389,6 +391,214 @@ func (m *TLCityActivityGetActivities) XXX_DiscardUnknown() {
 }
 
 var xxx_messageInfo_TLCityActivityGetActivities proto.InternalMessageInfo
+
+func (m *TLCityActivityGetActivities) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TLCityActivityGetActivities) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TLCityActivityGetActivities) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	if m.XXX_unrecognized != nil {
+		i -= len(m.XXX_unrecognized)
+		copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	if m.Filter != 0 {
+		i = encodeVarintSchemaTlCityactivity(dAtA, i, uint64(m.Filter))
+		i--
+		dAtA[i] = 0x30 // field 6, varint
+	}
+	if m.Limit != 0 {
+		i = encodeVarintSchemaTlCityactivity(dAtA, i, uint64(m.Limit))
+		i--
+		dAtA[i] = 0x28 // field 5, varint
+	}
+	if m.Offset != 0 {
+		i = encodeVarintSchemaTlCityactivity(dAtA, i, uint64(m.Offset))
+		i--
+		dAtA[i] = 0x20 // field 4, varint
+	}
+	if len(m.City) > 0 {
+		i -= len(m.City)
+		copy(dAtA[i:], m.City)
+		i = encodeVarintSchemaTlCityactivity(dAtA, i, uint64(len(m.City)))
+		i--
+		dAtA[i] = 0x1a // field 3, length-delimited
+	}
+	if m.Constructor != 0 {
+		i = encodeVarintSchemaTlCityactivity(dAtA, i, uint64(m.Constructor))
+		i--
+		dAtA[i] = 0x08 // field 1, varint
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TLCityActivityGetActivities) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	if m.Constructor != 0 {
+		n += 1 + sovSchemaTlCityactivity(uint64(m.Constructor))
+	}
+	l := len(m.City)
+	if l > 0 {
+		n += 1 + l + sovSchemaTlCityactivity(uint64(l))
+	}
+	if m.Offset != 0 {
+		n += 1 + sovSchemaTlCityactivity(uint64(m.Offset))
+	}
+	if m.Limit != 0 {
+		n += 1 + sovSchemaTlCityactivity(uint64(m.Limit))
+	}
+	if m.Filter != 0 {
+		n += 1 + sovSchemaTlCityactivity(uint64(m.Filter))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *TLCityActivityGetActivities) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		switch fieldNum {
+		case 1: // constructor
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Constructor", wireType)
+			}
+			var v TLConstructor
+			for shift := uint(0); ; shift += 7 {
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= TLConstructor(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Constructor = v
+		case 3: // city
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field City", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if int(stringLen) > l-iNdEx {
+				return io.ErrUnexpectedEOF
+			}
+			m.City = string(dAtA[iNdEx : iNdEx+int(stringLen)])
+			iNdEx += int(stringLen)
+		case 4: // offset
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Offset", wireType)
+			}
+			var v int32
+			for shift := uint(0); ; shift += 7 {
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Offset = v
+		case 5: // limit
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Limit", wireType)
+			}
+			var v int32
+			for shift := uint(0); ; shift += 7 {
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Limit = v
+		case 6: // filter
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Filter", wireType)
+			}
+			var v int32
+			for shift := uint(0); ; shift += 7 {
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Filter = v
+		default:
+			iNdEx = l
+		}
+	}
+	return nil
+}
+
+func encodeVarintSchemaTlCityactivity(dAtA []byte, offset int, v uint64) int {
+	offset--
+	dAtA[offset] = uint8(v)
+	for v >= 1<<7 {
+		dAtA[offset] = uint8(v&0x7f | 0x80)
+		v >>= 7
+		offset--
+	}
+	dAtA[offset] = uint8(v)
+	return offset
+}
+
+func sovSchemaTlCityactivity(x uint64) (n int) {
+	return (math_bits.Len64(x|1) + 6) / 7
+}
 
 func (m *TLCityActivityGetActivities) GetConstructor() TLConstructor {
 	if m != nil {
