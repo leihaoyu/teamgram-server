@@ -360,6 +360,7 @@ type TLCityActivityGetActivities struct {
 	City                 string        `protobuf:"bytes,3,opt,name=city,proto3" json:"city,omitempty"`
 	Offset               int32         `protobuf:"varint,4,opt,name=offset,proto3" json:"offset,omitempty"`
 	Limit                int32         `protobuf:"varint,5,opt,name=limit,proto3" json:"limit,omitempty"`
+	Filter               int32         `protobuf:"varint,6,opt,name=filter,proto3" json:"filter,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
 	XXX_unrecognized     []byte        `json:"-"`
 	XXX_sizecache        int32         `json:"-"`
@@ -417,6 +418,13 @@ func (m *TLCityActivityGetActivities) GetLimit() int32 {
 	return 0
 }
 
+func (m *TLCityActivityGetActivities) GetFilter() int32 {
+	if m != nil {
+		return m.Filter
+	}
+	return 0
+}
+
 type TLCityActivityGetActivity struct {
 	Constructor          TLConstructor `protobuf:"varint,1,opt,name=constructor,proto3,enum=mtproto.TLConstructor" json:"constructor,omitempty"`
 	Id                   int64         `protobuf:"varint,3,opt,name=id,proto3" json:"id,omitempty"`
@@ -459,6 +467,57 @@ func (m *TLCityActivityGetActivity) GetConstructor() TLConstructor {
 func (m *TLCityActivityGetActivity) GetId() int64 {
 	if m != nil {
 		return m.Id
+	}
+	return 0
+}
+
+type TLCityActivityGetMyActivities struct {
+	Constructor          TLConstructor `protobuf:"varint,1,opt,name=constructor,proto3,enum=mtproto.TLConstructor" json:"constructor,omitempty"`
+	Offset               int32         `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
+	Limit                int32         `protobuf:"varint,4,opt,name=limit,proto3" json:"limit,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
+}
+
+func (m *TLCityActivityGetMyActivities) Reset()         { *m = TLCityActivityGetMyActivities{} }
+func (m *TLCityActivityGetMyActivities) String() string { return proto.CompactTextString(m) }
+func (*TLCityActivityGetMyActivities) ProtoMessage()    {}
+func (m *TLCityActivityGetMyActivities) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TLCityActivityGetMyActivities.Unmarshal(m, b)
+}
+func (m *TLCityActivityGetMyActivities) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TLCityActivityGetMyActivities.Marshal(b, m, deterministic)
+}
+func (m *TLCityActivityGetMyActivities) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TLCityActivityGetMyActivities.Merge(m, src)
+}
+func (m *TLCityActivityGetMyActivities) XXX_Size() int {
+	return xxx_messageInfo_TLCityActivityGetMyActivities.Size(m)
+}
+func (m *TLCityActivityGetMyActivities) XXX_DiscardUnknown() {
+	xxx_messageInfo_TLCityActivityGetMyActivities.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TLCityActivityGetMyActivities proto.InternalMessageInfo
+
+func (m *TLCityActivityGetMyActivities) GetConstructor() TLConstructor {
+	if m != nil {
+		return m.Constructor
+	}
+	return CRC32_UNKNOWN
+}
+
+func (m *TLCityActivityGetMyActivities) GetOffset() int32 {
+	if m != nil {
+		return m.Offset
+	}
+	return 0
+}
+
+func (m *TLCityActivityGetMyActivities) GetLimit() int32 {
+	if m != nil {
+		return m.Limit
 	}
 	return 0
 }
@@ -820,6 +879,7 @@ func init() {
 	proto.RegisterType((*TLCityActivityActivities)(nil), "mtproto.TL_cityActivity_activities")
 	proto.RegisterType((*TLCityActivityGetActivities)(nil), "mtproto.TL_cityActivity_getActivities")
 	proto.RegisterType((*TLCityActivityGetActivity)(nil), "mtproto.TL_cityActivity_getActivity")
+	proto.RegisterType((*TLCityActivityGetMyActivities)(nil), "mtproto.TL_cityActivity_getMyActivities")
 	proto.RegisterType((*TLCityActivityCreateActivity)(nil), "mtproto.TL_cityActivity_createActivity")
 	proto.RegisterType((*TLCityActivityEditActivity)(nil), "mtproto.TL_cityActivity_editActivity")
 	proto.RegisterType((*TLCityActivityDeleteActivity)(nil), "mtproto.TL_cityActivity_deleteActivity")
@@ -903,6 +963,7 @@ const _ = grpc.SupportPackageIsVersion4
 type RPCCityActivityClient interface {
 	CityActivityGetActivities(ctx context.Context, in *TLCityActivityGetActivities, opts ...grpc.CallOption) (*CityActivity_Activities, error)
 	CityActivityGetActivity(ctx context.Context, in *TLCityActivityGetActivity, opts ...grpc.CallOption) (*CityActivity, error)
+	CityActivityGetMyActivities(ctx context.Context, in *TLCityActivityGetMyActivities, opts ...grpc.CallOption) (*CityActivity_Activities, error)
 	CityActivityCreateActivity(ctx context.Context, in *TLCityActivityCreateActivity, opts ...grpc.CallOption) (*CityActivity, error)
 	CityActivityEditActivity(ctx context.Context, in *TLCityActivityEditActivity, opts ...grpc.CallOption) (*CityActivity, error)
 	CityActivityDeleteActivity(ctx context.Context, in *TLCityActivityDeleteActivity, opts ...grpc.CallOption) (*Bool, error)
@@ -930,6 +991,15 @@ func (c *rPCCityActivityClient) CityActivityGetActivities(ctx context.Context, i
 func (c *rPCCityActivityClient) CityActivityGetActivity(ctx context.Context, in *TLCityActivityGetActivity, opts ...grpc.CallOption) (*CityActivity, error) {
 	out := new(CityActivity)
 	err := c.cc.Invoke(ctx, "/mtproto.RPCCityActivity/cityActivity_getActivity", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *rPCCityActivityClient) CityActivityGetMyActivities(ctx context.Context, in *TLCityActivityGetMyActivities, opts ...grpc.CallOption) (*CityActivity_Activities, error) {
+	out := new(CityActivity_Activities)
+	err := c.cc.Invoke(ctx, "/mtproto.RPCCityActivity/cityActivity_getMyActivities", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -985,6 +1055,7 @@ func (c *rPCCityActivityClient) CityActivityLeaveActivity(ctx context.Context, i
 type RPCCityActivityServer interface {
 	CityActivityGetActivities(context.Context, *TLCityActivityGetActivities) (*CityActivity_Activities, error)
 	CityActivityGetActivity(context.Context, *TLCityActivityGetActivity) (*CityActivity, error)
+	CityActivityGetMyActivities(context.Context, *TLCityActivityGetMyActivities) (*CityActivity_Activities, error)
 	CityActivityCreateActivity(context.Context, *TLCityActivityCreateActivity) (*CityActivity, error)
 	CityActivityEditActivity(context.Context, *TLCityActivityEditActivity) (*CityActivity, error)
 	CityActivityDeleteActivity(context.Context, *TLCityActivityDeleteActivity) (*Bool, error)
@@ -1001,6 +1072,9 @@ func (*UnimplementedRPCCityActivityServer) CityActivityGetActivities(ctx context
 }
 func (*UnimplementedRPCCityActivityServer) CityActivityGetActivity(ctx context.Context, req *TLCityActivityGetActivity) (*CityActivity, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CityActivityGetActivity not implemented")
+}
+func (*UnimplementedRPCCityActivityServer) CityActivityGetMyActivities(ctx context.Context, req *TLCityActivityGetMyActivities) (*CityActivity_Activities, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CityActivityGetMyActivities not implemented")
 }
 func (*UnimplementedRPCCityActivityServer) CityActivityCreateActivity(ctx context.Context, req *TLCityActivityCreateActivity) (*CityActivity, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CityActivityCreateActivity not implemented")
@@ -1054,6 +1128,24 @@ func _RPCCityActivity_CityActivityGetActivity_Handler(srv interface{}, ctx conte
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(RPCCityActivityServer).CityActivityGetActivity(ctx, req.(*TLCityActivityGetActivity))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _RPCCityActivity_CityActivityGetMyActivities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TLCityActivityGetMyActivities)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(RPCCityActivityServer).CityActivityGetMyActivities(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/mtproto.RPCCityActivity/CityActivityGetMyActivities",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(RPCCityActivityServer).CityActivityGetMyActivities(ctx, req.(*TLCityActivityGetMyActivities))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1159,6 +1251,10 @@ var _RPCCityActivity_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "cityActivity_getActivity",
 			Handler:    _RPCCityActivity_CityActivityGetActivity_Handler,
+		},
+		{
+			MethodName: "cityActivity_getMyActivities",
+			Handler:    _RPCCityActivity_CityActivityGetMyActivities_Handler,
 		},
 		{
 			MethodName: "cityActivity_createActivity",

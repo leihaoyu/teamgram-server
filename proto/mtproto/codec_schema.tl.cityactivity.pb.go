@@ -257,6 +257,7 @@ func (m *TLCityActivityGetActivities) Encode(x *EncodeBuf, layer int32) error {
 		x.String(m.GetCity())
 		x.Int(m.GetOffset())
 		x.Int(m.GetLimit())
+		x.Int(m.GetFilter())
 	}
 	return nil
 }
@@ -271,6 +272,10 @@ func (m *TLCityActivityGetActivities) Decode(dBuf *DecodeBuf) error {
 		m.City = dBuf.String()
 		m.Offset = dBuf.Int()
 		m.Limit = dBuf.Int()
+		// filter (backward compatible - only read if data available)
+		if dBuf.GetError() == nil {
+			m.Filter = dBuf.Int()
+		}
 		return dBuf.GetError()
 	}
 	return dBuf.GetError()
@@ -306,6 +311,37 @@ func (m *TLCityActivityGetActivity) Decode(dBuf *DecodeBuf) error {
 }
 
 func (m *TLCityActivityGetActivity) DebugString() string {
+	jsonm := &jsonpb.Marshaler{OrigName: true}
+	dbgString, _ := jsonm.MarshalToString(m)
+	return dbgString
+}
+
+// TLCityActivityGetMyActivities
+func (m *TLCityActivityGetMyActivities) Encode(x *EncodeBuf, layer int32) error {
+	switch uint32(m.Constructor) {
+	case 0x7a160c0a:
+		x.UInt(0x7a160c0a)
+		x.Int(m.GetOffset())
+		x.Int(m.GetLimit())
+	}
+	return nil
+}
+
+func (m *TLCityActivityGetMyActivities) CalcByteSize(layer int32) int {
+	return 0
+}
+
+func (m *TLCityActivityGetMyActivities) Decode(dBuf *DecodeBuf) error {
+	switch uint32(m.Constructor) {
+	case 0x7a160c0a:
+		m.Offset = dBuf.Int()
+		m.Limit = dBuf.Int()
+		return dBuf.GetError()
+	}
+	return dBuf.GetError()
+}
+
+func (m *TLCityActivityGetMyActivities) DebugString() string {
 	jsonm := &jsonpb.Marshaler{OrigName: true}
 	dbgString, _ := jsonm.MarshalToString(m)
 	return dbgString
@@ -350,14 +386,11 @@ func (m *TLCityActivityCreateActivity) Decode(dBuf *DecodeBuf) error {
 		m.MaxParticipants = dBuf.Int()
 		// photo_ids vector
 		c10 := dBuf.Int()
-		fmt.Printf("[DECODE] createActivity: c10=%d, expect=%d, match=%v, title=%s\n", c10, int32(CRC32_vector), c10 == int32(CRC32_vector), m.Title)
 		if c10 == int32(CRC32_vector) {
 			l10 := dBuf.Int()
-			fmt.Printf("[DECODE] createActivity: photoIds count=%d\n", l10)
 			m.PhotoIds = make([]int64, l10)
 			for i := int32(0); i < l10; i++ {
 				m.PhotoIds[i] = dBuf.Long()
-				fmt.Printf("[DECODE] createActivity: photoIds[%d]=%d\n", i, m.PhotoIds[i])
 			}
 		}
 		// is_global

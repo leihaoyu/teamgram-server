@@ -19,6 +19,12 @@ func (s *Service) CityActivityGetActivity(ctx context.Context, request *mtproto.
 	return r, err
 }
 
+func (s *Service) CityActivityGetMyActivities(ctx context.Context, request *mtproto.TLCityActivityGetMyActivities) (*mtproto.CityActivity_Activities, error) {
+	c := core.New(ctx, s.svcCtx)
+	r, err := c.CityActivityGetMyActivities(request)
+	return r, err
+}
+
 func (s *Service) CityActivityCreateActivity(ctx context.Context, request *mtproto.TLCityActivityCreateActivity) (*mtproto.CityActivity, error) {
 	c := core.New(ctx, s.svcCtx)
 	r, err := c.CityActivityCreateActivity(request)

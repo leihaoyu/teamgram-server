@@ -2,15 +2,18 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
-	"github.com/teamgram/teamgram-server/app/bff/cityactivity/internal/dao"
-	media "github.com/teamgram/teamgram-server/app/service/media/media"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	media "github.com/teamgram/teamgram-server/app/service/media/media"
 )
 
-func (c *CityActivityCore) CityActivityGetActivities(in *mtproto.TLCityActivityGetActivities) (*mtproto.CityActivity_Activities, error) {
-	// 客户端传的城市直接用于过滤，空城市 = 查询全部活动
-	// IP检测城市只在创建活动时使用，不在列表查询时使用
-	city := in.GetCity()
+func (c *CityActivityCore) CityActivityGetMyActivities(in *mtproto.TLCityActivityGetMyActivities) (*mtproto.CityActivity_Activities, error) {
+	var userId int64
+	if c.MD != nil {
+		userId = c.MD.UserId
+	}
+	if userId == 0 {
+		return nil, mtproto.ErrAuthKeyPermEmpty
+	}
 
 	offset := in.GetOffset()
 	limit := in.GetLimit()
@@ -18,15 +21,10 @@ func (c *CityActivityCore) CityActivityGetActivities(in *mtproto.TLCityActivityG
 		limit = 20
 	}
 
-	activities, count, err := c.svcCtx.Dao.GetActivitiesByCity(c.ctx, city, offset, limit, in.GetFilter())
+	activities, count, err := c.svcCtx.Dao.GetMyActivities(c.ctx, userId, offset, limit)
 	if err != nil {
-		c.Logger.Errorf("cityActivity.getActivities - error: %v", err)
+		c.Logger.Errorf("cityActivity.getMyActivities - error: %v", err)
 		return nil, err
-	}
-
-	var userId int64
-	if c.MD != nil {
-		userId = c.MD.UserId
 	}
 
 	// Batch get first photo for each activity
@@ -78,12 +76,8 @@ func (c *CityActivityCore) CityActivityGetActivities(in *mtproto.TLCityActivityG
 	})
 
 	for _, a := range activities {
-		isJoined := false
-		if userId > 0 {
-			isJoined = c.svcCtx.Dao.IsUserJoined(c.ctx, a.Id, userId)
-		}
+		isJoined := c.svcCtx.Dao.IsUserJoined(c.ctx, a.Id, userId)
 		proto := activityToProto(a, isJoined)
-		// Attach first photo if available
 		if pid, ok := firstPhotoIds[a.Id]; ok {
 			if photo, ok2 := photoCache[pid]; ok2 {
 				proto.Photos = []*mtproto.Photo{photo}
@@ -93,25 +87,4 @@ func (c *CityActivityCore) CityActivityGetActivities(in *mtproto.TLCityActivityG
 	}
 
 	return result.To_CityActivity_Activities(), nil
-}
-
-func activityToProto(a *dao.Activity, isJoined bool) *mtproto.CityActivity {
-	return mtproto.MakeTLCityActivity(&mtproto.CityActivity{
-		Id:               a.Id,
-		UserId:           a.UserId,
-		Title:            a.Title,
-		Description:      a.Description,
-		PhotoId:          a.PhotoId,
-		City:             a.City,
-		StartTime:        a.StartTime,
-		EndTime:          a.EndTime,
-		MaxParticipants:  a.MaxParticipants,
-		Status:           a.Status,
-		IsGlobal:         mtproto.ToBool(a.IsGlobal == 1),
-		ParticipantCount: a.ParticipantCount,
-		IsJoined:         mtproto.ToBool(isJoined),
-		CreatorName:      a.CreatorName,
-		CreatedAt:        a.CreatedAt,
-		ChatId:           a.ChatId,
-	}).To_CityActivity()
 }

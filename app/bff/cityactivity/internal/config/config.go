@@ -10,5 +10,6 @@ type Config struct {
 	Mysql        *sqlx.Config `json:",optional"`
 	MediaClient  zrpc.RpcClientConf
 	ChatClient   zrpc.RpcClientConf
+	UserClient   zrpc.RpcClientConf
 	TestCityName string `json:",optional"`
 }

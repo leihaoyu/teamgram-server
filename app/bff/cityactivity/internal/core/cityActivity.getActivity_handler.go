@@ -2,6 +2,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 	media "github.com/teamgram/teamgram-server/app/service/media/media"
 )
 
@@ -22,6 +23,19 @@ func (c *CityActivityCore) CityActivityGetActivity(in *mtproto.TLCityActivityGet
 	isJoined := false
 	if userId > 0 {
 		isJoined = c.svcCtx.Dao.IsUserJoined(c.ctx, activity.Id, userId)
+	}
+
+	// Resolve creator name
+	if userData, err2 := c.svcCtx.Dao.UserClient.UserGetUserDataListByIdList(c.ctx, &userpb.TLUserGetUserDataListByIdList{
+		UserIdList: []int64{activity.UserId},
+	}); err2 == nil {
+		for _, ud := range userData.GetDatas() {
+			name := ud.GetFirstName()
+			if ln := ud.GetLastName(); ln != "" {
+				name += " " + ln
+			}
+			activity.CreatorName = name
+		}
 	}
 
 	result := activityToProto(activity, isJoined)

@@ -10795,6 +10795,11 @@ var clazzIdRegisters2 = map[int32]func() TLObject{
 			Constructor: 2048265225,
 		}
 	},
+	2048265226: func() TLObject { // 0x7a1b2c0a
+		return &TLCityActivityGetMyActivities{
+			Constructor: 2048265226,
+		}
+	},
 }
 
 func NewTLObjectByClassID(classId int32) TLObject {

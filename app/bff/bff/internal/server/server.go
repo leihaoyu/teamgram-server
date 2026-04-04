@@ -386,6 +386,7 @@ func (s *Server) Initialize() error {
 				Mysql:         c.CityActivityMySQL,
 				MediaClient:   c.MediaClient,
 				ChatClient:    c.BizServiceClient,
+				UserClient:    c.BizServiceClient,
 				TestCityName:  c.TestCityName,
 			}))
 	})

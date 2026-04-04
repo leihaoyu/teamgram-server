@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"net"
+	"sort"
 	"time"
 
 	"github.com/oschwald/geoip2-golang"
@@ -12,6 +13,7 @@ import (
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
 	"github.com/teamgram/teamgram-server/app/bff/cityactivity/internal/config"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
+	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
 	media_client "github.com/teamgram/teamgram-server/app/service/media/client"
 	"github.com/zeromicro/go-zero/core/logx"
 )
@@ -56,6 +58,7 @@ type Dao struct {
 	TestCityName string
 	media_client.MediaClient
 	chat_client.ChatClient
+	user_client.UserClient
 }
 
 func New(c config.Config) *Dao {
@@ -64,6 +67,7 @@ func New(c config.Config) *Dao {
 		TestCityName: c.TestCityName,
 		MediaClient: media_client.NewMediaClient(rpcx.GetCachedRpcClient(c.MediaClient)),
 		ChatClient:  chat_client.NewChatClient(rpcx.GetCachedRpcClient(c.ChatClient)),
+		UserClient:  user_client.NewUserClient(rpcx.GetCachedRpcClient(c.UserClient)),
 	}
 
 	MMDB, err := geoip2.Open(mmdb2)
@@ -124,27 +128,57 @@ func (d *Dao) GetCityByIp(ip string) string {
 	return ""
 }
 
-func (d *Dao) GetActivitiesByCity(ctx context.Context, city string, offset, limit int32) ([]*Activity, int32, error) {
+func (d *Dao) GetActivitiesByCity(ctx context.Context, city string, offset, limit, filter int32) ([]*Activity, int32, error) {
 	var activities []*Activity
 	var err error
 	var count int32
 
-	if city == "" {
-		query := "SELECT * FROM activities WHERE status = 1 ORDER BY is_global DESC, created_at DESC LIMIT ?, ?"
+	// Build query based on filter: 0=all, 1=city only, 2=global only
+	switch filter {
+	case 1: // city only
+		if city == "" {
+			query := "SELECT * FROM activities WHERE status = 1 AND is_global = 0 ORDER BY created_at DESC LIMIT ?, ?"
+			err = d.db.QueryRowsPartial(ctx, &activities, query, offset, limit)
+			if err != nil {
+				return nil, 0, err
+			}
+			countQuery := "SELECT COUNT(*) FROM activities WHERE status = 1 AND is_global = 0"
+			_ = d.db.QueryRow(ctx, &count, countQuery)
+		} else {
+			query := "SELECT * FROM activities WHERE city = ? AND is_global = 0 AND status = 1 ORDER BY created_at DESC LIMIT ?, ?"
+			err = d.db.QueryRowsPartial(ctx, &activities, query, city, offset, limit)
+			if err != nil {
+				return nil, 0, err
+			}
+			countQuery := "SELECT COUNT(*) FROM activities WHERE city = ? AND is_global = 0 AND status = 1"
+			_ = d.db.QueryRow(ctx, &count, countQuery, city)
+		}
+	case 2: // global only
+		query := "SELECT * FROM activities WHERE is_global = 1 AND status = 1 ORDER BY created_at DESC LIMIT ?, ?"
 		err = d.db.QueryRowsPartial(ctx, &activities, query, offset, limit)
 		if err != nil {
 			return nil, 0, err
 		}
-		countQuery := "SELECT COUNT(*) FROM activities WHERE status = 1"
+		countQuery := "SELECT COUNT(*) FROM activities WHERE is_global = 1 AND status = 1"
 		_ = d.db.QueryRow(ctx, &count, countQuery)
-	} else {
-		query := "SELECT * FROM activities WHERE (city = ? OR is_global = 1) AND status = 1 ORDER BY is_global DESC, created_at DESC LIMIT ?, ?"
-		err = d.db.QueryRowsPartial(ctx, &activities, query, city, offset, limit)
-		if err != nil {
-			return nil, 0, err
+	default: // 0 = all
+		if city == "" {
+			query := "SELECT * FROM activities WHERE status = 1 ORDER BY is_global DESC, created_at DESC LIMIT ?, ?"
+			err = d.db.QueryRowsPartial(ctx, &activities, query, offset, limit)
+			if err != nil {
+				return nil, 0, err
+			}
+			countQuery := "SELECT COUNT(*) FROM activities WHERE status = 1"
+			_ = d.db.QueryRow(ctx, &count, countQuery)
+		} else {
+			query := "SELECT * FROM activities WHERE (city = ? OR is_global = 1) AND status = 1 ORDER BY is_global DESC, created_at DESC LIMIT ?, ?"
+			err = d.db.QueryRowsPartial(ctx, &activities, query, city, offset, limit)
+			if err != nil {
+				return nil, 0, err
+			}
+			countQuery := "SELECT COUNT(*) FROM activities WHERE (city = ? OR is_global = 1) AND status = 1"
+			_ = d.db.QueryRow(ctx, &count, countQuery, city)
 		}
-		countQuery := "SELECT COUNT(*) FROM activities WHERE (city = ? OR is_global = 1) AND status = 1"
-		_ = d.db.QueryRow(ctx, &count, countQuery, city)
 	}
 
 	if count == 0 {
@@ -154,6 +188,11 @@ func (d *Dao) GetActivitiesByCity(ctx context.Context, city string, offset, limi
 	for _, a := range activities {
 		a.ParticipantCount = d.getParticipantCount(ctx, a.Id)
 	}
+
+	// Sort by participant count descending
+	sort.Slice(activities, func(i, j int) bool {
+		return activities[i].ParticipantCount > activities[j].ParticipantCount
+	})
 
 	return activities, count, nil
 }
@@ -167,6 +206,36 @@ func (d *Dao) GetActivityById(ctx context.Context, id int64) (*Activity, error) 
 	}
 	activity.ParticipantCount = d.getParticipantCount(ctx, id)
 	return &activity, nil
+}
+
+func (d *Dao) GetMyActivities(ctx context.Context, userId int64, offset, limit int32) ([]*Activity, int32, error) {
+	var activities []*Activity
+	var count int32
+
+	// Get activities created by user OR joined by user (including taken-down ones for management)
+	query := `SELECT DISTINCT a.* FROM activities a
+		LEFT JOIN activity_participants ap ON a.id = ap.activity_id AND ap.user_id = ?
+		WHERE (a.user_id = ? OR ap.user_id = ?) AND a.status != 2
+		ORDER BY a.created_at DESC LIMIT ?, ?`
+	err := d.db.QueryRowsPartial(ctx, &activities, query, userId, userId, userId, offset, limit)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	countQuery := `SELECT COUNT(DISTINCT a.id) FROM activities a
+		LEFT JOIN activity_participants ap ON a.id = ap.activity_id AND ap.user_id = ?
+		WHERE (a.user_id = ? OR ap.user_id = ?) AND a.status != 2`
+	_ = d.db.QueryRow(ctx, &count, countQuery, userId, userId, userId)
+
+	if count == 0 {
+		count = int32(len(activities))
+	}
+
+	for _, a := range activities {
+		a.ParticipantCount = d.getParticipantCount(ctx, a.Id)
+	}
+
+	return activities, count, nil
 }
 
 func (d *Dao) CreateActivity(ctx context.Context, a *Activity) (int64, error) {
@@ -225,6 +294,12 @@ func (d *Dao) LeaveActivity(ctx context.Context, activityId, userId int64) error
 
 func (d *Dao) UpdateActivityChatId(ctx context.Context, activityId, chatId int64) error {
 	_, err := d.db.Exec(ctx, "UPDATE activities SET chat_id = ? WHERE id = ?", chatId, activityId)
+	return err
+}
+
+func (d *Dao) UpdateActivityStatus(ctx context.Context, id, userId int64, status int32) error {
+	now := time.Now().Unix()
+	_, err := d.db.Exec(ctx, "UPDATE activities SET status=?, updated_at=? WHERE id=? AND user_id=?", status, now, id, userId)
 	return err
 }
 
