@@ -268,6 +268,7 @@ func (m *TLCityActivityGetActivities) Decode(dBuf *DecodeBuf) error {
 	m.Offset = dBuf.Int()
 	m.Limit = dBuf.Int()
 	m.Filter = dBuf.Int()
+	fmt.Printf("[DECODE] TLCityActivityGetActivities - city: %s, offset: %d, limit: %d, filter: %d\n", m.City, m.Offset, m.Limit, m.Filter)
 	return dBuf.GetError()
 }
 
