@@ -615,7 +615,10 @@ func (s *authSessions) onSessionNew(ctx context.Context, connMsg *connData) {
 		s.sessions[connMsg.sessionId] = sess
 		// sess.onSessionConnNew(connMsg.gatewayId)
 	} else {
-		sess.sessionState = kSessionStateNew
+		// Don't reset sessionState to kSessionStateNew for existing sessions.
+		// The gateway sends SessionCreateSession when a new TCP connection carries
+		// this sessionId, but the session is already created — resetting the state
+		// would cause a spurious new_session_created on the next message.
 		logx.Infof("onSessionNew - session found, conn: %s", connMsg.DebugString())
 	}
 

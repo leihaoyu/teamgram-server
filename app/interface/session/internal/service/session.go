@@ -310,12 +310,10 @@ func (c *session) onSessionMessageData(ctx context.Context, gatewayId, clientIp 
 		}
 	}
 
-	if c.sessionState == kSessionStateNew || minMsgId < c.firstMsgId {
+	if c.sessionState == kSessionStateNew || (c.firstMsgId != 0 && minMsgId < c.firstMsgId) {
 		logx.WithContext(ctx).Infof("onNewSessionCreated - %#v, c: %s", msgs, c)
 		c.onNewSessionCreated(ctx, gatewayId, minMsgId)
-		if c.firstMsgId != 0 {
-			c.firstMsgId = minMsgId
-		}
+		c.firstMsgId = minMsgId
 		c.sessionState = kSessionStateCreated
 		// return
 	}
