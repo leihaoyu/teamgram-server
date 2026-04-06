@@ -175,28 +175,33 @@ func (d *Dao) GetActivitiesByCity(ctx context.Context, city string, offset, limi
 		}
 		countQuery := "SELECT COUNT(*) FROM activities WHERE is_global = 1 AND status = 1" + searchCond
 		_ = d.db.QueryRow(ctx, &count, countQuery, searchArgs...)
-	default: // 0 = all
-		if city == "" {
-			query := "SELECT * FROM activities WHERE status = 1" + searchCond + " ORDER BY is_global DESC, created_at DESC LIMIT ?, ?"
-			args := append(searchArgs, offset, limit)
-			err = d.db.QueryRowsPartial(ctx, &activities, query, args...)
-			if err != nil {
-				return nil, 0, err
-			}
-			countQuery := "SELECT COUNT(*) FROM activities WHERE status = 1" + searchCond
-			_ = d.db.QueryRow(ctx, &count, countQuery, searchArgs...)
-		} else {
-			query := "SELECT * FROM activities WHERE (city = ? OR is_global = 1) AND status = 1" + searchCond + " ORDER BY is_global DESC, created_at DESC LIMIT ?, ?"
-			args := append([]interface{}{city}, searchArgs...)
-			args = append(args, offset, limit)
-			err = d.db.QueryRowsPartial(ctx, &activities, query, args...)
-			if err != nil {
-				return nil, 0, err
-			}
-			countQuery := "SELECT COUNT(*) FROM activities WHERE (city = ? OR is_global = 1) AND status = 1" + searchCond
-			countArgs := append([]interface{}{city}, searchArgs...)
-			_ = d.db.QueryRow(ctx, &count, countQuery, countArgs...)
+	default: // 0 = all — global max 20, city max 10
+		// Fetch global activities (max 20)
+		var globalActivities []*Activity
+		globalQuery := "SELECT * FROM activities WHERE is_global = 1 AND status = 1" + searchCond + " ORDER BY created_at DESC LIMIT 20"
+		globalArgs := append([]interface{}{}, searchArgs...)
+		err = d.db.QueryRowsPartial(ctx, &globalActivities, globalQuery, globalArgs...)
+		if err != nil {
+			return nil, 0, err
 		}
+
+		// Fetch city activities (max 10)
+		var cityActivities []*Activity
+		if city == "" {
+			cityQuery := "SELECT * FROM activities WHERE status = 1 AND is_global = 0" + searchCond + " ORDER BY created_at DESC LIMIT 10"
+			cityArgs := append([]interface{}{}, searchArgs...)
+			err = d.db.QueryRowsPartial(ctx, &cityActivities, cityQuery, cityArgs...)
+		} else {
+			cityQuery := "SELECT * FROM activities WHERE city = ? AND is_global = 0 AND status = 1" + searchCond + " ORDER BY created_at DESC LIMIT 10"
+			cityArgs := append([]interface{}{city}, searchArgs...)
+			err = d.db.QueryRowsPartial(ctx, &cityActivities, cityQuery, cityArgs...)
+		}
+		if err != nil {
+			return nil, 0, err
+		}
+
+		activities = append(globalActivities, cityActivities...)
+		count = int32(len(activities))
 	}
 
 	if count == 0 {
