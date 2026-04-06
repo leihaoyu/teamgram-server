@@ -22,6 +22,7 @@ import (
 	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
+	usernamepb "github.com/teamgram/teamgram-server/app/service/biz/username/username"
 )
 
 // AccountDeleteAccount
@@ -49,6 +50,15 @@ func (c *AccountCore) AccountDeleteAccount(in *mtproto.TLAccountDeleteAccount) (
 	})
 	if err != nil {
 		c.Logger.Errorf("account.deleteAccount - unbind auth key error: %v", err)
+	}
+
+	// Delete username record so the username can be re-registered
+	_, err = c.svcCtx.Dao.UsernameClient.UsernameDeleteUsernameByPeer(c.ctx, &usernamepb.TLUsernameDeleteUsernameByPeer{
+		PeerType: mtproto.PEER_USER,
+		PeerId:   userId,
+	})
+	if err != nil {
+		c.Logger.Errorf("account.deleteAccount - delete username error: %v", err)
 	}
 
 	return mtproto.BoolTrue, nil

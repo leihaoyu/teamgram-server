@@ -303,6 +303,7 @@ func (s *Server) Initialize() error {
 			KV:                c.KV,
 			UserClient:        c.BizServiceClient,
 			AuthsessionClient: c.AuthSessionClient,
+			UsernameClient:    c.BizServiceClient,
 			ChatClient:        c.BizServiceClient,
 			SyncClient:        c.SyncClient,
 		})

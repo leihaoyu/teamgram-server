@@ -29,6 +29,7 @@ type Config struct {
 	KV                kv.KvConf `json:",optional"`
 	UserClient        zrpc.RpcClientConf
 	AuthsessionClient zrpc.RpcClientConf
+	UsernameClient    zrpc.RpcClientConf
 	ChatClient        zrpc.RpcClientConf
 	SyncClient        *kafka.KafkaProducerConf
 }
