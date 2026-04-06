@@ -16429,3 +16429,4 @@ Error: %8$@";
 "CityActivity.PhotoLabel" = "图片";
 "CityActivity.AddPhoto" = "添加图片（还可选%@张）";
 "CityActivity.DescriptionPlaceholder" = "请输入活动简介...";
+"Settings.MyChats" = "我的聊天";

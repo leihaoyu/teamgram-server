@@ -178,7 +178,7 @@ func (d *Dao) GetActivitiesByCity(ctx context.Context, city string, offset, limi
 	default: // 0 = all — global max 20, city max 10
 		// Fetch global activities (max 20)
 		var globalActivities []*Activity
-		globalQuery := "SELECT * FROM activities WHERE is_global = 1 AND status = 1" + searchCond + " ORDER BY created_at DESC LIMIT 20"
+		globalQuery := "SELECT * FROM activities WHERE is_global = 1 AND status = 1" + searchCond + " ORDER BY created_at DESC LIMIT 30"
 		globalArgs := append([]interface{}{}, searchArgs...)
 		err = d.db.QueryRowsPartial(ctx, &globalActivities, globalQuery, globalArgs...)
 		if err != nil {
@@ -188,7 +188,7 @@ func (d *Dao) GetActivitiesByCity(ctx context.Context, city string, offset, limi
 		// Fetch city activities (max 10)
 		var cityActivities []*Activity
 		if city == "" {
-			cityQuery := "SELECT * FROM activities WHERE status = 1 AND is_global = 0" + searchCond + " ORDER BY created_at DESC LIMIT 10"
+			cityQuery := "SELECT * FROM activities WHERE status = 1 AND is_global = 0" + searchCond + " ORDER BY created_at DESC LIMIT 30"
 			cityArgs := append([]interface{}{}, searchArgs...)
 			err = d.db.QueryRowsPartial(ctx, &cityActivities, cityQuery, cityArgs...)
 		} else {

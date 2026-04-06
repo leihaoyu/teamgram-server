@@ -14,7 +14,7 @@ import (
 
 // langPackVersion is bumped when language packs are updated.
 // Clients will re-fetch on version mismatch.
-var langPackVersion = int32(6)
+var langPackVersion = int32(7)
 
 // LangPackEntry stores a parsed language pack.
 type LangPackEntry struct {

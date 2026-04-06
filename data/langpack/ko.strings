@@ -16418,3 +16418,4 @@ Error: %8$@";
 "CityActivity.PhotoLabel" = "Photo";
 "CityActivity.AddPhoto" = "Add Photo (%@ more available)";
 "CityActivity.DescriptionPlaceholder" = "Enter activity description...";
+"Settings.MyChats" = "내 채팅";
