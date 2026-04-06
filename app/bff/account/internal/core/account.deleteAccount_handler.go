@@ -20,6 +20,7 @@ package core
 
 import (
 	"github.com/teamgram/proto/mtproto"
+	"github.com/teamgram/teamgram-server/app/service/authsession/authsession"
 	userpb "github.com/teamgram/teamgram-server/app/service/biz/user/user"
 )
 
@@ -39,6 +40,15 @@ func (c *AccountCore) AccountDeleteAccount(in *mtproto.TLAccountDeleteAccount) (
 	if err != nil {
 		c.Logger.Errorf("account.deleteAccount - UserDeleteUser error: %v", err)
 		return nil, err
+	}
+
+	// Unbind current auth session so the user is logged out
+	_, err = c.svcCtx.Dao.AuthsessionClient.AuthsessionUnbindAuthKeyUser(c.ctx, &authsession.TLAuthsessionUnbindAuthKeyUser{
+		AuthKeyId: c.MD.AuthId,
+		UserId:    userId,
+	})
+	if err != nil {
+		c.Logger.Errorf("account.deleteAccount - unbind auth key error: %v", err)
 	}
 
 	return mtproto.BoolTrue, nil

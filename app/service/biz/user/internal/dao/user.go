@@ -367,6 +367,9 @@ func (d *Dao) DeleteUser(ctx context.Context, id int64, reason string) bool {
 				return 0, 0, err
 			}
 
+			// Clear username so deleted user cannot be resolved by username
+			d.UsersDAO.UpdateUsername(ctx, "", id)
+
 			return 0, rowsAffected, nil
 		},
 		genCacheUserDataCacheKey(id))

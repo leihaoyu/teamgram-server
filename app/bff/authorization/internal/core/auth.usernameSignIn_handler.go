@@ -56,6 +56,11 @@ func (c *AuthorizationCore) AuthUsernameSignIn(in *mtproto.TLAuthUsernameSignIn)
 		return nil, mtproto.ErrInternelServerError
 	}
 
+	if user.Deleted() {
+		c.Logger.Errorf("user %d is deleted, deny sign in", userId)
+		return nil, mtproto.ErrUsernameNotOccupied
+	}
+
 	// 5. bind existing auth_key to user
 	c.svcCtx.Dao.AuthsessionClient.AuthsessionBindAuthKeyUser(c.ctx, &authsession.TLAuthsessionBindAuthKeyUser{
 		AuthKeyId: c.MD.AuthId,

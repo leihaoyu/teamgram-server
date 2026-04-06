@@ -262,7 +262,11 @@ func (c *AuthorizationCore) authSendCode(authKeyId, sessionId int64, request *mt
 		//	return
 		//}
 	} else {
-		phoneRegistered = true
+		if user.Deleted() {
+			user = nil
+		} else {
+			phoneRegistered = true
+		}
 	}
 
 	// phoneRegistered = user != nil

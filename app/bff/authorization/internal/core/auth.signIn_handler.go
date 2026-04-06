@@ -230,6 +230,15 @@ func (c *AuthorizationCore) AuthSignIn(in *mtproto.TLAuthSignIn) (*mtproto.Auth_
 		return nil, err
 	}
 
+	if user.Deleted() {
+		c.Logger.Infof("auth.signIn - user(%s) is deleted, treat as unregistered", phoneNumber)
+		if c.MD.Layer >= 104 {
+			return mtproto.MakeTLAuthAuthorizationSignUpRequired(&mtproto.Auth_Authorization{}).To_Auth_Authorization(), nil
+		} else {
+			return nil, mtproto.ErrPhoneNumberUnoccupied
+		}
+	}
+
 	// Bind authKeyId and userId
 	c.svcCtx.Dao.AuthsessionClient.AuthsessionBindAuthKeyUser(c.ctx, &authsession.TLAuthsessionBindAuthKeyUser{
 		AuthKeyId: c.MD.AuthId,
