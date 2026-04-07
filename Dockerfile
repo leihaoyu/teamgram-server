@@ -1,6 +1,16 @@
 FROM golang:1.19 AS builder
 WORKDIR /app
+
+# ✅ 关键：先拷贝依赖文件
+COPY go.mod go.sum ./
+
+# ✅ 先下载依赖（缓存层）
+RUN go mod download
+
+# ✅ 再拷贝代码
 COPY . .
+
+# ✅ 编译
 RUN ./build.sh
 
 FROM ubuntu:latest
