@@ -2011,6 +2011,14 @@ var (
 	// ErrDateEmpty
 	// | 400 | DATE_EMPTY | Date empty. |
 	ErrDateEmpty = status.Error(400, "DATE_EMPTY")
+
+	// ErrCityMismatch
+	// | 400 | CITY_MISMATCH | The activity is for a different city. |
+	ErrCityMismatch = status.Error(400, "CITY_MISMATCH")
+
+	// ErrActivityFull
+	// | 400 | ACTIVITY_FULL | The activity has reached the maximum number of participants. |
+	ErrActivityFull = status.Error(400, "ACTIVITY_FULL")
 )
 
 // NewFilePartXMissing

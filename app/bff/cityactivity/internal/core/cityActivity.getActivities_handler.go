@@ -8,9 +8,11 @@ import (
 )
 
 func (c *CityActivityCore) CityActivityGetActivities(in *mtproto.TLCityActivityGetActivities) (*mtproto.CityActivity_Activities, error) {
-	// 客户端传的城市直接用于过滤，空城市 = 查询全部活动
-	// IP检测城市只在创建活动时使用，不在列表查询时使用
+	// 客户端传的城市直接用于过滤；如果未传城市，则通过IP检测自动匹配当前城市
 	city := in.GetCity()
+	if city == "" && c.MD != nil && c.MD.ClientAddr != "" {
+		city = c.svcCtx.Dao.GetCityByIp(c.MD.ClientAddr)
+	}
 
 	offset := in.GetOffset()
 	limit := in.GetLimit()

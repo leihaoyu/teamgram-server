@@ -3,7 +3,6 @@ package dao
 import (
 	"context"
 	"flag"
-	"fmt"
 	"net"
 	"sort"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"github.com/oschwald/geoip2-golang"
 	"github.com/teamgram/marmota/pkg/net/rpcx"
 	"github.com/teamgram/marmota/pkg/stores/sqlx"
+	"github.com/teamgram/proto/mtproto"
 	"github.com/teamgram/teamgram-server/app/bff/cityactivity/internal/config"
 	chat_client "github.com/teamgram/teamgram-server/app/service/biz/chat/client"
 	user_client "github.com/teamgram/teamgram-server/app/service/biz/user/client"
@@ -296,11 +296,11 @@ func (d *Dao) JoinActivity(ctx context.Context, activityId, userId int64, city s
 	}
 
 	if activity.IsGlobal == 0 && activity.City != "" && city != "" && activity.City != city {
-		return fmt.Errorf("city mismatch")
+		return mtproto.ErrCityMismatch
 	}
 
 	if activity.MaxParticipants > 0 && activity.ParticipantCount >= activity.MaxParticipants {
-		return fmt.Errorf("activity is full")
+		return mtproto.ErrActivityFull
 	}
 
 	now := time.Now().Unix()

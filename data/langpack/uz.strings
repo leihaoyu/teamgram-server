@@ -16400,3 +16400,5 @@ Error: %8$@";
 "CityActivity.AddPhoto" = "Add Photo (%@ more available)";
 "CityActivity.DescriptionPlaceholder" = "Enter activity description...";
 "Settings.MyChats" = "Mening chatlarim";
+"CityActivity.CityMismatch" = "This activity is for a different city. You can only join activities in your current city.";
+"CityActivity.ActivityFull" = "This activity has reached the maximum number of participants.";

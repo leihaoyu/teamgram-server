@@ -16430,3 +16430,5 @@ Error: %8$@";
 "CityActivity.AddPhoto" = "添加圖片（還可選%@張）";
 "CityActivity.DescriptionPlaceholder" = "請輸入活動簡介...";
 "Settings.MyChats" = "我的聊天";
+"CityActivity.CityMismatch" = "該活動所在城市與您當前所在城市不一致，無法加入。";
+"CityActivity.ActivityFull" = "該活動參與人數已滿。";
